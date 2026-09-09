@@ -62,12 +62,18 @@ CATEGORY_RULES = [
     ("Kurzfristig/Nebenjob", ["nebenjob", "aushilfe", "kellner", "kellnerin", "lieferant", "fahrer", "cafe", "café"]),
 ]
 
-# Wörter, die auf eine Positions-/Rollenbezeichnung hindeuten - werden fuer
-# den Untertitel aus Betreff/Text herausgesucht.
-POSITION_HINTS = [
-    "praktikum", "praktikant", "werkstudent", "volontariat", "trainee",
-    "associate", "projekt-manager", "projektmanager", "programm-manager",
-    "kursleiter", "redaktion", "redakteur",
+# Regex-Muster, die eine ganze Positions-/Rollenphrase einfangen (nicht nur
+# ein einzelnes Wort), z.B. "Associate to the CFO/COO" oder "Praktikum Redaktion".
+# Werden der Reihe nach gegen Betreff+Text (Originalgross-/Kleinschreibung) geprueft.
+POSITION_PATTERNS = [
+    r"Associate\s+(?:to|for|at)\s+the\s+[\w/]+(?:\s+[\w/]+)?",
+    r"Praktikum(?:s)?\s*(?:als\s+)?[A-ZÄÖÜ][\wÄÖÜäöüß]+(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß]+)?",
+    r"Werkstudent(?:in)?\s*(?:\([^)]*\))?",
+    r"Kursleiter(?:in)?",
+    r"Volontariat",
+    r"Projekt[- ]?Manager(?:in)?",
+    r"Programm[- ]?Manager(?:in)?",
+    r"Trainee(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß]+)?",
 ]
 
 
@@ -186,10 +192,17 @@ def clean_headline(subject):
     return cleaned or subject.strip()
 
 
-def guess_subtitle(combined_text_lower):
-    for hint in POSITION_HINTS:
-        if hint in combined_text_lower:
-            return hint.capitalize()
+def guess_subtitle(combined_text):
+    """Sucht eine ganze Positions-/Rollenphrase im Original-Text (Gross-/
+    Kleinschreibung erhalten), damit z.B. 'Associate to the CFO/COO' oder
+    'Praktikum Redaktion' komplett erkannt werden, nicht nur ein Wort."""
+    for pattern in POSITION_PATTERNS:
+        match = re.search(pattern, combined_text)
+        if match:
+            candidate = match.group(0).strip()
+            if len(candidate) > 45:
+                candidate = candidate[:42].rstrip() + "..."
+            return candidate
     return ""
 
 
@@ -280,7 +293,7 @@ def main():
                 iso_date = ""
 
             headline = clean_headline(subject)
-            subtitle = guess_subtitle(combined_lower)
+            subtitle = guess_subtitle(combined_text)
             bereich = guess_category(combined_lower, domain)
             org = guess_org_from_domain(domain)
             person = display_name or ""
