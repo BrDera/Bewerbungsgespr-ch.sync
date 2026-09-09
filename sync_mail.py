@@ -2,8 +2,9 @@
 Bewerbungs-Mail-Sync (Cloud-Version)
 
 Durchsucht per IMAP den Sent-Ordner einer iCloud-Adresse nach Mails der
-letzten 2 Tage, filtert nach Stichwoertern im Betreff und traegt Treffer
-als Karte (Status "Offen") in die Supabase-Tabelle "bewerbungen" ein.
+letzten 2 Tage, filtert nach Stichwoertern im Betreff UND im Text und
+traegt Treffer als Karte (Status "Offen") in die Supabase-Tabelle
+"bewerbungen" ein.
 
 Gedacht zum Ausfuehren in GitHub Actions nach Zeitplan - siehe
 mail-sync.yml. Benoetigte Umgebungsvariablen (als GitHub Secrets):
@@ -30,11 +31,15 @@ from email.utils import parseaddr, parsedate_to_datetime
 IMAP_HOST = "imap.mail.me.com"
 IMAP_PORT = 993
 
-# Stichwoerter, die im Betreff auf eine Bewerbung hindeuten (klein geschrieben).
-# Bei Bedarf ergaenzen/anpassen.
+# Stichwoerter, die im Betreff ODER im Text auf eine Bewerbung hindeuten
+# (klein geschrieben). Bei Bedarf ergaenzen/anpassen.
 KEYWORDS = ["bewerbung", "anschreiben", "application", "praktikum", "initiativbewerbung"]
 
 CANDIDATE_SENT_FOLDERS = ["Sent Messages", "Sent", "INBOX.Sent Messages"]
+
+# Wie viele Zeichen aus dem Mailtext maximal fuer die Stichwortsuche
+# herangezogen werden (Performance-Schutz bei sehr langen Mails).
+MAX_BODY_CHARS = 20000
 
 
 def decode_str(raw):
@@ -48,6 +53,35 @@ def decode_str(raw):
         else:
             out += text
     return out
+
+
+def extract_body_text(msg):
+    """Holt den Klartext-Inhalt einer Mail (auch bei mehrteiligen Mails)."""
+    text_parts = []
+    if msg.is_multipart():
+        for part in msg.walk():
+            content_type = part.get_content_type()
+            content_disposition = str(part.get("Content-Disposition", ""))
+            if content_type == "text/plain" and "attachment" not in content_disposition.lower():
+                try:
+                    payload = part.get_payload(decode=True)
+                    if not payload:
+                        continue
+                    charset = part.get_content_charset() or "utf-8"
+                    text_parts.append(payload.decode(charset, errors="replace"))
+                except Exception:
+                    continue
+    else:
+        try:
+            payload = msg.get_payload(decode=True)
+            if payload:
+                charset = msg.get_content_charset() or "utf-8"
+                text_parts.append(payload.decode(charset, errors="replace"))
+        except Exception:
+            pass
+
+    combined = "\n".join(text_parts)
+    return combined[:MAX_BODY_CHARS]
 
 
 def connect():
@@ -105,8 +139,8 @@ def fetch_recent_messages(conn, days=2):
     return messages
 
 
-def matches_keywords(subject):
-    lower = subject.lower()
+def matches_keywords(text):
+    lower = text.lower()
     return any(kw in lower for kw in KEYWORDS)
 
 
@@ -159,7 +193,10 @@ def main():
         added = 0
         for msg in messages:
             subject = decode_str(msg.get("Subject"))
-            if not matches_keywords(subject):
+            body = extract_body_text(msg)
+            combined_text = subject + "\n" + body
+
+            if not matches_keywords(combined_text):
                 continue
 
             message_id = msg.get("Message-ID") or f"{msg.get('Date')}-{subject}"
