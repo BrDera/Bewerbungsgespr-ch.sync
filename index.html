@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bewerbungs-Kanban</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --surface: #ffffff;
+    --ink: #1c2230;
+    --ink-soft: #5b6270;
+    --border: #dcdfe4;
+    --header: #1c2230;
+
+    --red: #d97862;
+    --red-bg: #fbeae8;
+    --yellow: #d9a441;
+    --yellow-bg: #fdf3da;
+    --green: #4f9d72;
+    --green-bg: #e6f2ea;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .topbar {
+    background: var(--header);
+    color: #fff;
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .topbar h1 {
+    font-size: 19px;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    color: #b8bcc6;
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .tab-btn.active {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+  }
+
+  .add-btn {
+    background: #fff;
+    color: var(--header);
+    border: none;
+    padding: 9px 16px;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .add-btn:hover { background: #e9eaee; }
+  .add-btn:disabled { opacity: 0.6; cursor: default; }
+
+  .sync-status {
+    font-size: 12px;
+    color: #b8bcc6;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .board {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(230px, 1fr);
+    gap: 14px;
+    padding: 18px;
+    align-items: start;
+    overflow-x: auto;
+  }
+
+  .column {
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .column-head {
+    padding: 12px 14px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .column-title {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .count-pill {
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  .card-list {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    flex: 1;
+    min-height: 60px;
+  }
+
+  .card-list.drag-over {
+    background: var(--bg);
+    border-radius: 8px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: 8px;
+    padding: 10px 11px;
+    cursor: grab;
+    transition: box-shadow 0.15s;
+  }
+  .card:hover { box-shadow: 0 2px 8px rgba(20,22,30,0.08); }
+  .card.dragging { opacity: 0.4; }
+
+  .card.status-red { border-left-color: var(--red); }
+  .card.status-yellow { border-left-color: var(--yellow); }
+  .card.status-green { border-left-color: var(--green); }
+
+  .card-org {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 2px;
+  }
+  .card-pos {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 0 0 6px;
+  }
+  .card-tag {
+    display: inline-block;
+    font-size: 10px;
+    background: var(--bg);
+    color: var(--ink-soft);
+    padding: 2px 7px;
+    border-radius: 999px;
+    margin-right: 5px;
+  }
+  .card-meta {
+    font-size: 10px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .empty-hint {
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+    padding: 16px 8px;
+  }
+
+  /* Netzwerk */
+  .contact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    padding: 18px;
+  }
+  .contact-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 14px;
+    cursor: pointer;
+  }
+  .contact-card:hover { box-shadow: 0 2px 8px rgba(20,22,30,0.08); }
+  .contact-name { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+  .contact-email { font-size: 10px; color: var(--ink-soft); margin: 4px 0 0; word-break: break-all; }
+  .contact-org { font-size: 11px; color: var(--ink-soft); }
+  .contact-dates { font-size: 10px; color: var(--ink-soft); margin-top: 8px; }
+
+  /* Modal */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20,22,30,0.45);
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    overflow-y: auto;
+    z-index: 50;
+  }
+  .overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    padding: 22px 24px 20px;
+  }
+
+  .modal h2 {
+    font-size: 17px;
+    font-weight: 500;
+    margin: 0 0 16px;
+  }
+
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--ink);
+    background: #fff;
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: #9aa0ab;
+  }
+
+  .status-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .status-opt {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    color: var(--ink-soft);
+  }
+  .status-opt[data-status="red"].active { background: var(--red-bg); border-color: var(--red); color: #8a3420; }
+  .status-opt[data-status="yellow"].active { background: var(--yellow-bg); border-color: var(--yellow); color: #7c5518; }
+  .status-opt[data-status="green"].active { background: var(--green-bg); border-color: var(--green); color: #205c39; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .mailverlauf-list {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+  }
+  .mailverlauf-entry {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .mailverlauf-entry:last-child { border-bottom: none; }
+  .mailverlauf-date { color: var(--ink-soft); white-space: nowrap; }
+  .mailverlauf-empty { padding: 10px; font-size: 12px; color: var(--ink-soft); text-align: center; }
+
+  .small-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+  }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: #fff;
+  }
+  .btn-primary { background: var(--header); color: #fff; border: none; }
+  .btn-primary:disabled { opacity: 0.6; cursor: default; }
+  .btn-danger { background: none; border: none; color: #a03227; font-size: 13px; }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--header);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    max-width: 90%;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Bewerbungs-Kanban</h1>
+    <div class="tabs">
+      <button class="tab-btn active" data-view="bewerbungen">Bewerbungen</button>
+      <button class="tab-btn" data-view="netzwerk">Netzwerk</button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="sync-status" id="syncStatus">Verbinde...</span>
+    <button class="add-btn" id="addBtn" disabled>+ Neue Bewerbung</button>
+  </div>
+</div>
+
+<div class="view active" id="view-bewerbungen">
+  <div class="board" id="board"></div>
+</div>
+
+<div class="view" id="view-netzwerk">
+  <div class="board" id="contactBoard"></div>
+</div>
+
+<!-- Bewerbung Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Neue Bewerbung</h2>
+
+    <div class="status-row" id="statusRow">
+      <div class="status-opt" data-status="red">Nichts zurück</div>
+      <div class="status-opt" data-status="yellow">Offen</div>
+      <div class="status-opt" data-status="green">Angenommen</div>
+    </div>
+
+    <div class="field">
+      <label for="f-org">Organisation</label>
+      <input id="f-org" type="text" placeholder="z.B. NDR">
+    </div>
+    <div class="field">
+      <label for="f-subtitle">Position/Untertitel</label>
+      <input id="f-subtitle" type="text" placeholder="z.B. Praktikum Redaktion">
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label for="f-bereich">Bereich</label>
+        <select id="f-bereich">
+          <option value="Journalismus">Journalismus</option>
+          <option value="Gründung/Gründungszentrum">Gründung/Gründungszentrum</option>
+          <option value="Wissenschaft/Akademisch">Wissenschaft/Akademisch</option>
+          <option value="Start-up">Start-up</option>
+          <option value="KI">KI</option>
+          <option value="Kurzfristig/Nebenjob">Kurzfristig/Nebenjob</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-datum">Letzter Kontakt</label>
+        <input id="f-datum" type="date">
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label for="f-person">Ansprechperson</label>
+        <input id="f-person" type="text" placeholder="Name">
+      </div>
+      <div class="field">
+        <label for="f-mail">Kontakt E-Mail</label>
+        <input id="f-mail" type="email" placeholder="name@beispiel.de">
+      </div>
+    </div>
+    <div class="field">
+      <label for="f-link">Stellenlink</label>
+      <input id="f-link" type="text" placeholder="https://...">
+    </div>
+
+    <div class="field">
+      <label>Mailverlauf</label>
+      <div class="mailverlauf-list" id="mailverlaufList"></div>
+      <button type="button" class="small-btn" id="addMailEntryBtn">+ Eintrag hinzufügen</button>
+    </div>
+
+    <div class="field">
+      <label for="f-notes">Notizen</label>
+      <textarea id="f-notes" placeholder="Freitext-Notizen ..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-danger" id="deleteBtn">Löschen</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="cancelBtn">Abbrechen</button>
+        <button class="btn btn-primary" id="saveBtn">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Kontakt Modal -->
+<div class="overlay" id="contactOverlay">
+  <div class="modal">
+    <h2 id="contactModalTitle">Neuer Kontakt</h2>
+    <div class="field">
+      <label for="c-name">Name</label>
+      <input id="c-name" type="text" placeholder="Name">
+    </div>
+    <div class="field">
+      <label for="c-email">E-Mail</label>
+      <input id="c-email" type="email" placeholder="name@beispiel.de">
+    </div>
+    <div class="field">
+      <label for="c-unternehmen">Unternehmen</label>
+      <input id="c-unternehmen" type="text" placeholder="Firma/Organisation">
+    </div>
+    <div class="field">
+      <label for="c-bereich">Bereich</label>
+      <select id="c-bereich">
+        <option value="Journalismus">Journalismus</option>
+        <option value="Gründung/Gründungszentrum">Gründung/Gründungszentrum</option>
+        <option value="Wissenschaft/Akademisch">Wissenschaft/Akademisch</option>
+        <option value="Start-up">Start-up</option>
+        <option value="KI">KI</option>
+        <option value="Kurzfristig/Nebenjob">Kurzfristig/Nebenjob</option>
+        <option value="Sonstiges">Sonstiges</option>
+      </select>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label for="c-erster">Erster Kontakt</label>
+        <input id="c-erster" type="date">
+      </div>
+      <div class="field">
+        <label for="c-letzter">Letzter Kontakt</label>
+        <input id="c-letzter" type="date">
+      </div>
+    </div>
+    <div class="field">
+      <label for="c-notizen">Notizen</label>
+      <textarea id="c-notizen" placeholder="Freitext-Notizen ..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-danger" id="contactDeleteBtn">Löschen</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="contactCancelBtn">Abbrechen</button>
+        <button class="btn btn-primary" id="contactSaveBtn">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://abjhtqkrexqnjjbpfuwv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiamh0cWtyZXhxbmpqYnBmdXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjQ5OTAsImV4cCI6MjEwNDU0MDk5MH0.R5OJygrvZ1SOJk6mFlEs9ipQyPl5xz1GJoQ7WZ0m1Ns';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CATEGORIES = [
+  { key: 'Journalismus', label: 'Journalismus' },
+  { key: 'Gründung/Gründungszentrum', label: 'Gründung' },
+  { key: 'Wissenschaft/Akademisch', label: 'Wissenschaft' },
+  { key: 'Start-up', label: 'Start-up' },
+  { key: 'KI', label: 'KI' },
+  { key: 'Kurzfristig/Nebenjob', label: 'Nebenjob' },
+  { key: 'Sonstiges', label: 'Sonstiges' },
+];
+
+let cards = [];
+let contacts = [];
+let editingCardId = null;
+let editingContactId = null;
+let currentStatus = 'yellow';
+let currentMailverlauf = [];
+
+function uid() { return 'c' + Date.now() + Math.random().toString(16).slice(2, 8); }
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : str;
+  return div.innerHTML;
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+function setSyncStatus(text) { document.getElementById('syncStatus').textContent = text; }
+
+function rowToObj(row) { return { id: row.id, ...row.data }; }
+function objToRow(obj) { const { id, ...data } = obj; return { id, data }; }
+
+async function loadAll() {
+  setSyncStatus('Verbinde...');
+  const [bRes, kRes] = await Promise.all([
+    db.from('bewerbungen').select('id, data'),
+    db.from('kontakte').select('id, data'),
+  ]);
+  if (bRes.error) {
+    setSyncStatus('Keine Verbindung');
+    showToast('Fehler beim Laden: ' + bRes.error.message);
+  } else {
+    cards = bRes.data.map(rowToObj);
+  }
+  if (!kRes.error) {
+    contacts = kRes.data.map(rowToObj);
+  }
+  setSyncStatus('Synchron');
+  document.getElementById('addBtn').disabled = false;
+  renderBoard();
+  renderContacts();
+}
+
+function cardTitle(card) { return card.org || 'Ohne Namen'; }
+function cardSubtitle(card) { return card.subtitle || card.pos || ''; }
+function cardCategory(card) { return card.bereich || 'Sonstiges'; }
+function cardStatus(card) { return card.status || 'yellow'; }
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const col = document.createElement('div');
+    col.className = 'column';
+    col.dataset.bereich = cat.key;
+
+    const filtered = cards.filter(c => cardCategory(c) === cat.key);
+
+    col.innerHTML =
+      '<div class="column-head"><span class="column-title">' + escapeHtml(cat.label) + '</span>' +
+      '<span class="count-pill">' + filtered.length + '</span></div>' +
+      '<div class="card-list" data-bereich="' + cat.key + '"></div>';
+
+    board.appendChild(col);
+    const list = col.querySelector('.card-list');
+
+    if (filtered.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'empty-hint';
+      hint.textContent = 'Keine Einträge';
+      list.appendChild(hint);
+    }
+
+    filtered.forEach(card => {
+      const el = document.createElement('div');
+      el.className = 'card status-' + cardStatus(card);
+      el.draggable = true;
+      el.dataset.id = card.id;
+      const mvCount = (card.mailverlauf || []).length;
+      el.innerHTML =
+        '<p class="card-org">' + escapeHtml(cardTitle(card)) + '</p>' +
+        (cardSubtitle(card) ? '<p class="card-pos">' + escapeHtml(cardSubtitle(card)) + '</p>' : '') +
+        (card.org && card.org !== cardTitle(card) ? '<span class="card-tag">' + escapeHtml(card.org) + '</span>' : '') +
+        '<div class="card-meta">' +
+        (mvCount ? '<span>' + mvCount + ' Mail(s)</span>' : '') +
+        (card.datum ? '<span>' + escapeHtml(card.datum) + '</span>' : '') +
+        '</div>';
+      el.addEventListener('click', () => openCardModal(card.id));
+      el.addEventListener('dragstart', () => el.classList.add('dragging'));
+      el.addEventListener('dragend', () => el.classList.remove('dragging'));
+      list.appendChild(el);
+    });
+  });
+
+  document.querySelectorAll('.card-list').forEach(list => {
+    list.addEventListener('dragover', e => { e.preventDefault(); list.classList.add('drag-over'); });
+    list.addEventListener('dragleave', () => list.classList.remove('drag-over'));
+    list.addEventListener('drop', async e => {
+      e.preventDefault();
+      list.classList.remove('drag-over');
+      const dragging = document.querySelector('.card.dragging');
+      if (!dragging) return;
+      const id = dragging.dataset.id;
+      const card = cards.find(c => c.id === id);
+      const newBereich = list.dataset.bereich;
+      if (card && cardCategory(card) !== newBereich) {
+        card.bereich = newBereich;
+        renderBoard();
+        const { error } = await db.from('bewerbungen').update({ data: objToRow(card).data }).eq('id', id);
+        if (error) showToast('Speichern fehlgeschlagen: ' + error.message);
+      }
+    });
+  });
+}
+
+function contactCategory(contact) { return contact.bereich || 'Sonstiges'; }
+
+function renderContacts() {
+  const board = document.getElementById('contactBoard');
+  board.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const col = document.createElement('div');
+    col.className = 'column';
+
+    const filtered = contacts.filter(c => contactCategory(c) === cat.key);
+
+    col.innerHTML =
+      '<div class="column-head"><span class="column-title">' + escapeHtml(cat.label) + '</span>' +
+      '<span class="count-pill">' + filtered.length + '</span></div>' +
+      '<div class="card-list contact-list" data-bereich="' + cat.key + '"></div>';
+
+    board.appendChild(col);
+    const list = col.querySelector('.card-list');
+
+    if (filtered.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'empty-hint';
+      hint.textContent = 'Keine Kontakte';
+      list.appendChild(hint);
+    }
+
+    filtered.forEach(contact => {
+      const el = document.createElement('div');
+      el.className = 'card contact-item';
+      el.draggable = true;
+      el.dataset.id = contact.id;
+      el.innerHTML =
+        '<p class="card-org">' + escapeHtml(contact.name || contact.email || 'Unbekannt') + '</p>' +
+        (contact.unternehmen ? '<p class="card-pos">' + escapeHtml(contact.unternehmen) + '</p>' : '') +
+        (contact.email ? '<div class="contact-email">' + escapeHtml(contact.email) + '</div>' : '') +
+        '<div class="card-meta">' +
+        (contact.letzter_kontakt ? '<span>Zuletzt ' + escapeHtml(contact.letzter_kontakt) + '</span>' : '') +
+        '</div>';
+      el.addEventListener('click', () => openContactModal(contact.id));
+      el.addEventListener('dragstart', () => el.classList.add('dragging'));
+      el.addEventListener('dragend', () => el.classList.remove('dragging'));
+      list.appendChild(el);
+    });
+  });
+
+  document.querySelectorAll('.contact-list').forEach(list => {
+    list.addEventListener('dragover', e => { e.preventDefault(); list.classList.add('drag-over'); });
+    list.addEventListener('dragleave', () => list.classList.remove('drag-over'));
+    list.addEventListener('drop', async e => {
+      e.preventDefault();
+      list.classList.remove('drag-over');
+      const dragging = document.querySelector('.contact-item.dragging');
+      if (!dragging) return;
+      const id = dragging.dataset.id;
+      const contact = contacts.find(c => c.id === id);
+      const newBereich = list.dataset.bereich;
+      if (contact && contactCategory(contact) !== newBereich) {
+        contact.bereich = newBereich;
+        renderContacts();
+        const { error } = await db.from('kontakte').update({ data: objToRow(contact).data }).eq('id', id);
+        if (error) showToast('Speichern fehlgeschlagen: ' + error.message);
+      }
+    });
+  });
+}
+
+/* Tabs */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    document.getElementById('addBtn').textContent = btn.dataset.view === 'netzwerk' ? '+ Neuer Kontakt' : '+ Neue Bewerbung';
+  });
+});
+
+/* Bewerbung Modal */
+function openCardModal(id) {
+  editingCardId = id || null;
+  const card = id ? cards.find(c => c.id === id) : null;
+  document.getElementById('modalTitle').textContent = card ? 'Bewerbung bearbeiten' : 'Neue Bewerbung';
+  document.getElementById('f-org').value = card ? (card.org || '') : '';
+  document.getElementById('f-subtitle').value = card ? cardSubtitle(card) : '';
+  document.getElementById('f-bereich').value = card ? cardCategory(card) : 'Journalismus';
+  document.getElementById('f-datum').value = card ? (card.datum || '') : '';
+  document.getElementById('f-person').value = card ? (card.person || '') : '';
+  document.getElementById('f-mail').value = card ? (card.mail || '') : '';
+  document.getElementById('f-link').value = card ? (card.link || '') : '';
+  document.getElementById('f-notes').value = card ? (card.notes || '') : '';
+  currentStatus = card ? cardStatus(card) : 'yellow';
+  currentMailverlauf = card && Array.isArray(card.mailverlauf) ? [...card.mailverlauf] : [];
+  updateStatusRow();
+  renderMailverlauf();
+  document.getElementById('deleteBtn').style.display = card ? 'inline-block' : 'none';
+  document.getElementById('overlay').classList.add('open');
+}
+function closeCardModal() {
+  document.getElementById('overlay').classList.remove('open');
+  editingCardId = null;
+}
+function updateStatusRow() {
+  document.querySelectorAll('#statusRow .status-opt').forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.status === currentStatus);
+  });
+}
+document.querySelectorAll('#statusRow .status-opt').forEach(opt => {
+  opt.addEventListener('click', () => { currentStatus = opt.dataset.status; updateStatusRow(); });
+});
+
+function renderMailverlauf() {
+  const list = document.getElementById('mailverlaufList');
+  list.innerHTML = '';
+  if (currentMailverlauf.length === 0) {
+    list.innerHTML = '<div class="mailverlauf-empty">Noch keine Einträge</div>';
+    return;
+  }
+  currentMailverlauf.slice().reverse().forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'mailverlauf-entry';
+    row.innerHTML =
+      '<span>' + escapeHtml(entry.betreff || entry.zusammenfassung || '') + '</span>' +
+      '<span class="mailverlauf-date">' + escapeHtml(entry.datum || '') + '</span>';
+    list.appendChild(row);
+  });
+}
+document.getElementById('addMailEntryBtn').addEventListener('click', () => {
+  const betreff = prompt('Kurze Notiz zu diesem Kontakt:');
+  if (betreff === null || betreff.trim() === '') return;
+  const datum = new Date().toISOString().slice(0, 10);
+  currentMailverlauf.push({ datum, betreff: betreff.trim() });
+  renderMailverlauf();
+});
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  const netzwerkActive = document.getElementById('view-netzwerk').classList.contains('active');
+  if (netzwerkActive) openContactModal(null); else openCardModal(null);
+});
+document.getElementById('cancelBtn').addEventListener('click', closeCardModal);
+document.getElementById('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeCardModal(); });
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const org = document.getElementById('f-org').value.trim();
+  if (!org) {
+    document.getElementById('f-org').style.borderColor = '#c0392b';
+    showToast('Bitte Organisation eintragen');
+    return;
+  }
+  document.getElementById('f-org').style.borderColor = '';
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+
+  const data = {
+    org,
+    subtitle: document.getElementById('f-subtitle').value.trim(),
+    bereich: document.getElementById('f-bereich').value,
+    datum: document.getElementById('f-datum').value,
+    person: document.getElementById('f-person').value.trim(),
+    mail: document.getElementById('f-mail').value.trim(),
+    link: document.getElementById('f-link').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    status: currentStatus,
+    mailverlauf: currentMailverlauf,
+  };
+
+  let card;
+  if (editingCardId) {
+    const idx = cards.findIndex(c => c.id === editingCardId);
+    card = { ...cards[idx], ...data };
+    cards[idx] = card;
+  } else {
+    card = { id: uid(), ...data };
+    cards.push(card);
+  }
+
+  const row = objToRow(card);
+  const { error } = await db.from('bewerbungen').upsert(row);
+  saveBtn.disabled = false;
+  if (error) { showToast('Speichern fehlgeschlagen: ' + error.message); return; }
+
+  renderBoard();
+  closeCardModal();
+  showToast('Gespeichert');
+});
+
+document.getElementById('deleteBtn').addEventListener('click', async () => {
+  if (!editingCardId) return;
+  const id = editingCardId;
+  const { error } = await db.from('bewerbungen').delete().eq('id', id);
+  if (error) { showToast('Löschen fehlgeschlagen: ' + error.message); return; }
+  cards = cards.filter(c => c.id !== id);
+  renderBoard();
+  closeCardModal();
+  showToast('Gelöscht');
+});
+
+/* Kontakt Modal */
+function openContactModal(id) {
+  editingContactId = id || null;
+  const contact = id ? contacts.find(c => c.id === id) : null;
+  document.getElementById('contactModalTitle').textContent = contact ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
+  document.getElementById('c-name').value = contact ? (contact.name || '') : '';
+  document.getElementById('c-email').value = contact ? (contact.email || '') : '';
+  document.getElementById('c-unternehmen').value = contact ? (contact.unternehmen || '') : '';
+  document.getElementById('c-bereich').value = contact ? contactCategory(contact) : 'Sonstiges';
+  document.getElementById('c-erster').value = contact ? (contact.erster_kontakt || '') : '';
+  document.getElementById('c-letzter').value = contact ? (contact.letzter_kontakt || '') : '';
+  document.getElementById('c-notizen').value = contact ? (contact.notizen || '') : '';
+  document.getElementById('contactDeleteBtn').style.display = contact ? 'inline-block' : 'none';
+  document.getElementById('contactOverlay').classList.add('open');
+}
+function closeContactModal() {
+  document.getElementById('contactOverlay').classList.remove('open');
+  editingContactId = null;
+}
+document.getElementById('contactCancelBtn').addEventListener('click', closeContactModal);
+document.getElementById('contactOverlay').addEventListener('click', e => { if (e.target.id === 'contactOverlay') closeContactModal(); });
+
+document.getElementById('contactSaveBtn').addEventListener('click', async () => {
+  const name = document.getElementById('c-name').value.trim();
+  if (!name) {
+    document.getElementById('c-name').style.borderColor = '#c0392b';
+    showToast('Bitte Namen eintragen');
+    return;
+  }
+  document.getElementById('c-name').style.borderColor = '';
+
+  const btn = document.getElementById('contactSaveBtn');
+  btn.disabled = true;
+
+  const data = {
+    name,
+    email: document.getElementById('c-email').value.trim(),
+    unternehmen: document.getElementById('c-unternehmen').value.trim(),
+    bereich: document.getElementById('c-bereich').value,
+    erster_kontakt: document.getElementById('c-erster').value,
+    letzter_kontakt: document.getElementById('c-letzter').value,
+    notizen: document.getElementById('c-notizen').value.trim(),
+  };
+
+  let contact;
+  if (editingContactId) {
+    const idx = contacts.findIndex(c => c.id === editingContactId);
+    contact = { ...contacts[idx], ...data };
+    contacts[idx] = contact;
+  } else {
+    contact = { id: uid(), ...data };
+    contacts.push(contact);
+  }
+
+  const row = objToRow(contact);
+  const { error } = await db.from('kontakte').upsert(row);
+  btn.disabled = false;
+  if (error) { showToast('Speichern fehlgeschlagen: ' + error.message); return; }
+
+  renderContacts();
+  closeContactModal();
+  showToast('Gespeichert');
+});
+
+document.getElementById('contactDeleteBtn').addEventListener('click', async () => {
+  if (!editingContactId) return;
+  const id = editingContactId;
+  const { error } = await db.from('kontakte').delete().eq('id', id);
+  if (error) { showToast('Löschen fehlgeschlagen: ' + error.message); return; }
+  contacts = contacts.filter(c => c.id !== id);
+  renderContacts();
+  closeContactModal();
+  showToast('Gelöscht');
+});
+
+loadAll();
+</script>
+
+</body>
+</html>
