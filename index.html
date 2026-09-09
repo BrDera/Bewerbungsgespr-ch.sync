@@ -7,369 +7,303 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg: #eef0f3;
+    --bg: #f4f5f7;
     --surface: #ffffff;
-    --ink: #1c2230;
-    --ink-soft: #5b6270;
-    --border: #dcdfe4;
-    --header: #1c2230;
+    --ink: #16202e;
+    --ink-soft: #6b7280;
+    --ink-faint: #9ca3af;
+    --border: #e5e7eb;
+    --header: #111a26;
+    --accent: #2f6f5e;
 
-    --red: #d97862;
-    --red-bg: #fbeae8;
-    --yellow: #d9a441;
-    --yellow-bg: #fdf3da;
-    --green: #4f9d72;
-    --green-bg: #e6f2ea;
+    --red: #c2553d;
+    --red-soft: #fdf0ed;
+    --yellow: #c98a1e;
+    --yellow-soft: #fdf6e7;
+    --green: #3f8d68;
+    --green-soft: #edf6f1;
+
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+    --shadow-lg: 0 4px 14px rgba(16,24,40,.10);
   }
 
   * { box-sizing: border-box; }
 
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
     background: var(--bg);
     color: var(--ink);
+    -webkit-font-smoothing: antialiased;
   }
 
+  /* ---------- Topbar ---------- */
   .topbar {
     background: var(--header);
     color: #fff;
-    padding: 16px 28px;
+    padding: 14px 24px 0;
+  }
+  .topbar-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px;
     flex-wrap: wrap;
-    gap: 12px;
   }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .brand .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; }
 
-  .topbar h1 {
-    font-size: 19px;
-    font-weight: 500;
-    margin: 0;
-  }
+  .topbar-tools { display: flex; align-items: center; gap: 10px; }
 
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-top: 10px;
-  }
-
-  .tab-btn {
-    background: none;
-    border: none;
-    color: #b8bcc6;
-    padding: 6px 14px;
-    border-radius: 7px;
-    font-size: 13px;
-    cursor: pointer;
-    font-weight: 500;
-  }
-  .tab-btn.active {
-    background: rgba(255,255,255,0.12);
+  .search-wrap { position: relative; }
+  .search-wrap svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); opacity: .5; }
+  .search-input {
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.16);
     color: #fff;
+    border-radius: 8px;
+    padding: 7px 28px 7px 30px;
+    font-size: 13px;
+    font-family: inherit;
+    width: 220px;
+    transition: background .15s, border-color .15s, width .15s;
   }
+  .search-input::placeholder { color: rgba(255,255,255,.55); }
+  .search-input:focus { outline: none; background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.35); width: 260px; }
+  .search-clear {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: rgba(255,255,255,.6);
+    cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; display: none;
+  }
+  .search-clear.show { display: block; }
 
   .add-btn {
-    background: #fff;
-    color: var(--header);
-    border: none;
-    padding: 9px 16px;
-    border-radius: 7px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
+    background: #fff; color: var(--header); border: none;
+    padding: 8px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: opacity .15s;
   }
-  .add-btn:hover { background: #e9eaee; }
-  .add-btn:disabled { opacity: 0.6; cursor: default; }
+  .add-btn:hover { opacity: .88; }
+  .add-btn:disabled { opacity: .45; cursor: default; }
 
-  .sync-status {
-    font-size: 12px;
-    color: #b8bcc6;
+  .sync-status { font-size: 12px; color: rgba(255,255,255,.6); white-space: nowrap; }
+
+  .tabs { display: flex; gap: 2px; margin-top: 12px; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.6);
+    padding: 9px 14px; font-size: 13px; font-weight: 500; cursor: pointer;
+    border-bottom: 2px solid transparent; font-family: inherit;
   }
-
-  .topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+  .tab-btn:hover { color: rgba(255,255,255,.85); }
+  .tab-btn.active { color: #fff; border-bottom-color: #fff; }
+  .tab-btn .badge {
+    background: rgba(255,255,255,.16); border-radius: 999px;
+    padding: 1px 7px; font-size: 11px; margin-left: 6px;
   }
 
   .view { display: none; }
   .view.active { display: block; }
 
+  /* ---------- Board ---------- */
   .board {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(230px, 1fr);
-    gap: 14px;
-    padding: 18px;
+    grid-auto-columns: minmax(244px, 1fr);
+    gap: 12px;
+    padding: 18px 24px 32px;
     align-items: start;
     overflow-x: auto;
   }
 
   .column {
-    background: var(--surface);
-    border-radius: 12px;
+    background: rgba(255,255,255,.55);
+    border-radius: var(--radius);
     border: 1px solid var(--border);
-    min-height: 120px;
     display: flex;
     flex-direction: column;
+    min-height: 90px;
   }
+  .column.dim { opacity: .45; }
 
   .column-head {
-    padding: 12px 14px 8px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border);
+    padding: 11px 13px 9px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
   }
-
-  .column-title {
-    font-size: 13px;
-    font-weight: 500;
-  }
-
+  .column-title { font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--ink-soft); }
   .count-pill {
-    font-size: 11px;
-    color: var(--ink-soft);
-    background: var(--bg);
-    padding: 2px 8px;
-    border-radius: 999px;
+    font-size: 11px; font-weight: 600; color: var(--ink-soft);
+    background: #eceef1; padding: 1px 7px; border-radius: 999px;
   }
 
   .card-list {
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    flex: 1;
-    min-height: 60px;
+    padding: 0 9px 10px;
+    display: flex; flex-direction: column; gap: 8px;
+    flex: 1; min-height: 44px;
   }
-
-  .card-list.drag-over {
-    background: var(--bg);
-    border-radius: 8px;
-  }
+  .card-list.drag-over { background: #e8ebef; border-radius: 8px; }
 
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left-width: 4px;
-    border-radius: 8px;
+    border-left: 3px solid var(--border);
+    border-radius: 9px;
     padding: 10px 11px;
     cursor: grab;
-    transition: box-shadow 0.15s;
+    box-shadow: var(--shadow);
+    transition: box-shadow .15s, transform .1s;
   }
-  .card:hover { box-shadow: 0 2px 8px rgba(20,22,30,0.08); }
-  .card.dragging { opacity: 0.4; }
+  .card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+  .card:active { cursor: grabbing; }
+  .card.dragging { opacity: .35; }
 
   .card.status-red { border-left-color: var(--red); }
   .card.status-yellow { border-left-color: var(--yellow); }
   .card.status-green { border-left-color: var(--green); }
 
-  .card-org {
-    font-size: 13px;
-    font-weight: 600;
-    margin: 0 0 2px;
+  .card-org { font-size: 13.5px; font-weight: 600; margin: 0 0 1px; letter-spacing: -.005em; }
+  .card-pos { font-size: 12px; color: var(--ink-soft); margin: 0; line-height: 1.35; }
+  .card-foot {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 8px; font-size: 11px; color: var(--ink-faint);
   }
-  .card-pos {
-    font-size: 12px;
-    color: var(--ink-soft);
-    margin: 0 0 6px;
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 500;
   }
-  .card-tag {
-    display: inline-block;
-    font-size: 10px;
-    background: var(--bg);
-    color: var(--ink-soft);
-    padding: 2px 7px;
-    border-radius: 999px;
-    margin-right: 5px;
-  }
-  .card-meta {
-    font-size: 10px;
-    color: var(--ink-soft);
-    margin-top: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  .chip-red { background: var(--red-soft); color: var(--red); }
+  .chip-yellow { background: var(--yellow-soft); color: var(--yellow); }
+  .chip-green { background: var(--green-soft); color: var(--green); }
+
+  mark { background: #fdf0b8; color: inherit; padding: 0 1px; border-radius: 2px; }
+
+  .empty-hint { font-size: 12px; color: var(--ink-faint); text-align: center; padding: 12px 6px; }
+
+  .no-results {
+    padding: 40px 24px; text-align: center; color: var(--ink-soft); font-size: 14px;
   }
 
-  .empty-hint {
-    font-size: 12px;
-    color: var(--ink-soft);
-    text-align: center;
-    padding: 16px 8px;
-  }
-
-  /* Netzwerk */
-  .contact-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 12px;
-    padding: 18px;
-  }
-  .contact-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 13px 14px;
-    cursor: pointer;
-  }
-  .contact-card:hover { box-shadow: 0 2px 8px rgba(20,22,30,0.08); }
-  .contact-name { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
-  .contact-email { font-size: 10px; color: var(--ink-soft); margin: 4px 0 0; word-break: break-all; }
-  .contact-org { font-size: 11px; color: var(--ink-soft); }
-  .contact-dates { font-size: 10px; color: var(--ink-soft); margin-top: 8px; }
-
-  /* Modal */
+  /* ---------- Modal ---------- */
   .overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(20,22,30,0.45);
-    align-items: flex-start;
-    justify-content: center;
-    padding: 40px 16px;
-    overflow-y: auto;
-    z-index: 50;
+    display: none; position: fixed; inset: 0;
+    background: rgba(16,24,40,.5);
+    align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto; z-index: 50;
+    backdrop-filter: blur(2px);
   }
   .overlay.open { display: flex; }
 
   .modal {
-    background: var(--surface);
-    border-radius: 12px;
-    width: 100%;
-    max-width: 500px;
-    padding: 22px 24px 20px;
+    background: var(--surface); border-radius: 14px;
+    width: 100%; max-width: 520px; padding: 22px 24px 20px;
+    box-shadow: 0 20px 50px rgba(16,24,40,.22);
   }
+  .modal h2 { font-size: 16px; font-weight: 600; margin: 0 0 18px; }
 
-  .modal h2 {
-    font-size: 17px;
-    font-weight: 500;
-    margin: 0 0 16px;
-  }
-
-  .field { margin-bottom: 12px; }
+  .field { margin-bottom: 13px; }
   .field label {
-    display: block;
-    font-size: 12px;
-    color: var(--ink-soft);
-    margin-bottom: 4px;
+    display: block; font-size: 11.5px; font-weight: 500;
+    color: var(--ink-soft); margin-bottom: 5px;
   }
   .field input, .field select, .field textarea {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 8px 10px;
-    font-size: 14px;
-    font-family: inherit;
-    color: var(--ink);
-    background: #fff;
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 13.5px; font-family: inherit;
+    color: var(--ink); background: #fff;
   }
-  .field textarea { resize: vertical; min-height: 60px; }
+  .field textarea { resize: vertical; min-height: 62px; line-height: 1.45; }
   .field input:focus, .field select:focus, .field textarea:focus {
-    outline: none;
-    border-color: #9aa0ab;
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,111,94,.10);
   }
 
-  .status-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .status-row { display: flex; gap: 7px; margin-bottom: 18px; }
   .status-opt {
-    flex: 1;
-    text-align: center;
-    padding: 8px 0;
-    border-radius: 7px;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1.5px solid var(--border);
-    color: var(--ink-soft);
+    flex: 1; text-align: center; padding: 8px 4px; border-radius: 8px;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    border: 1px solid var(--border); color: var(--ink-soft); background: #fff;
+    transition: all .12s;
   }
-  .status-opt[data-status="red"].active { background: var(--red-bg); border-color: var(--red); color: #8a3420; }
-  .status-opt[data-status="yellow"].active { background: var(--yellow-bg); border-color: var(--yellow); color: #7c5518; }
-  .status-opt[data-status="green"].active { background: var(--green-bg); border-color: var(--green); color: #205c39; }
+  .status-opt:hover { border-color: var(--ink-faint); }
+  .status-opt[data-status="red"].active { background: var(--red-soft); border-color: var(--red); color: var(--red); font-weight: 600; }
+  .status-opt[data-status="yellow"].active { background: var(--yellow-soft); border-color: var(--yellow); color: var(--yellow); font-weight: 600; }
+  .status-opt[data-status="green"].active { background: var(--green-soft); border-color: var(--green); color: var(--green); font-weight: 600; }
 
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 
   .mailverlauf-list {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    max-height: 150px;
-    overflow-y: auto;
-    margin-bottom: 8px;
+    border: 1px solid var(--border); border-radius: 8px;
+    max-height: 160px; overflow-y: auto; margin-bottom: 8px; background: #fafbfc;
   }
   .mailverlauf-entry {
-    padding: 7px 10px;
-    border-bottom: 1px solid var(--border);
-    font-size: 12px;
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    font-size: 12px; display: flex; justify-content: space-between; gap: 10px;
   }
   .mailverlauf-entry:last-child { border-bottom: none; }
-  .mailverlauf-date { color: var(--ink-soft); white-space: nowrap; }
-  .mailverlauf-empty { padding: 10px; font-size: 12px; color: var(--ink-soft); text-align: center; }
+  .mailverlauf-date { color: var(--ink-faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .mailverlauf-empty { padding: 14px; font-size: 12px; color: var(--ink-faint); text-align: center; }
 
   .small-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 10px;
-    font-size: 12px;
-    cursor: pointer;
-    color: var(--ink);
+    background: #fff; border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 11px; font-size: 12px; cursor: pointer; color: var(--ink); font-family: inherit;
   }
+  .small-btn:hover { border-color: var(--ink-faint); }
 
   .modal-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
   }
   .btn {
-    padding: 8px 16px;
-    border-radius: 7px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: #fff;
+    padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border); background: #fff; font-family: inherit;
   }
-  .btn-primary { background: var(--header); color: #fff; border: none; }
-  .btn-primary:disabled { opacity: 0.6; cursor: default; }
-  .btn-danger { background: none; border: none; color: #a03227; font-size: 13px; }
+  .btn:hover { border-color: var(--ink-faint); }
+  .btn-primary { background: var(--header); color: #fff; border-color: var(--header); font-weight: 600; }
+  .btn-primary:hover { opacity: .9; border-color: var(--header); }
+  .btn-primary:disabled { opacity: .5; cursor: default; }
+  .btn-danger { background: none; border: none; color: var(--red); font-size: 12.5px; cursor: pointer; font-family: inherit; }
+  .btn-danger:hover { text-decoration: underline; }
 
   .toast {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%) translateY(8px);
-    background: var(--header);
-    color: #fff;
-    padding: 8px 16px;
-    border-radius: 7px;
-    font-size: 13px;
-    opacity: 0;
-    transition: opacity 0.2s, transform 0.2s;
-    pointer-events: none;
-    max-width: 90%;
-    text-align: center;
+    position: fixed; bottom: 22px; left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--header); color: #fff;
+    padding: 9px 18px; border-radius: 9px; font-size: 13px;
+    opacity: 0; transition: opacity .2s, transform .2s;
+    pointer-events: none; max-width: 90%; text-align: center;
+    box-shadow: var(--shadow-lg);
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 720px) {
+    .board { grid-auto-flow: row; grid-auto-columns: auto; padding: 16px; }
+    .search-input, .search-input:focus { width: 100%; }
+    .search-wrap { flex: 1; }
+    .topbar-tools { width: 100%; }
+  }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div>
-    <h1>Bewerbungs-Kanban</h1>
-    <div class="tabs">
-      <button class="tab-btn active" data-view="bewerbungen">Bewerbungen</button>
-      <button class="tab-btn" data-view="netzwerk">Netzwerk</button>
+  <div class="topbar-row">
+    <div class="brand">
+      <span class="dot"></span>
+      <h1>Bewerbungs-Kanban</h1>
+    </div>
+    <div class="topbar-tools">
+      <div class="search-wrap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input class="search-input" id="searchInput" type="text" placeholder="Suchen ..." autocomplete="off">
+        <button class="search-clear" id="searchClear" title="Suche löschen">&times;</button>
+      </div>
+      <span class="sync-status" id="syncStatus">Verbinde ...</span>
+      <button class="add-btn" id="addBtn" disabled>+ Neu</button>
     </div>
   </div>
-  <div class="topbar-right">
-    <span class="sync-status" id="syncStatus">Verbinde...</span>
-    <button class="add-btn" id="addBtn" disabled>+ Neue Bewerbung</button>
+  <div class="tabs">
+    <button class="tab-btn active" data-view="bewerbungen">Bewerbungen <span class="badge" id="badgeB">0</span></button>
+    <button class="tab-btn" data-view="netzwerk">Netzwerk <span class="badge" id="badgeN">0</span></button>
   </div>
 </div>
 
@@ -397,7 +331,7 @@
       <input id="f-org" type="text" placeholder="z.B. NDR">
     </div>
     <div class="field">
-      <label for="f-subtitle">Position/Untertitel</label>
+      <label for="f-subtitle">Position</label>
       <input id="f-subtitle" type="text" placeholder="z.B. Praktikum Redaktion">
     </div>
     <div class="two-col">
@@ -458,17 +392,19 @@
 <div class="overlay" id="contactOverlay">
   <div class="modal">
     <h2 id="contactModalTitle">Neuer Kontakt</h2>
-    <div class="field">
-      <label for="c-name">Name</label>
-      <input id="c-name" type="text" placeholder="Name">
+    <div class="two-col">
+      <div class="field">
+        <label for="c-name">Name</label>
+        <input id="c-name" type="text" placeholder="Name">
+      </div>
+      <div class="field">
+        <label for="c-unternehmen">Unternehmen</label>
+        <input id="c-unternehmen" type="text" placeholder="Firma/Organisation">
+      </div>
     </div>
     <div class="field">
       <label for="c-email">E-Mail</label>
       <input id="c-email" type="email" placeholder="name@beispiel.de">
-    </div>
-    <div class="field">
-      <label for="c-unternehmen">Unternehmen</label>
-      <input id="c-unternehmen" type="text" placeholder="Firma/Organisation">
     </div>
     <div class="field">
       <label for="c-bereich">Bereich</label>
@@ -523,24 +459,42 @@ const CATEGORIES = [
   { key: 'Sonstiges', label: 'Sonstiges' },
 ];
 
+const STATUS_LABEL = { red: 'Nichts zurück', yellow: 'Offen', green: 'Angenommen' };
+
 let cards = [];
 let contacts = [];
 let editingCardId = null;
 let editingContactId = null;
 let currentStatus = 'yellow';
 let currentMailverlauf = [];
+let query = '';
 
 function uid() { return 'c' + Date.now() + Math.random().toString(16).slice(2, 8); }
 function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str == null ? '' : str;
-  return div.innerHTML;
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : str;
+  return d.innerHTML;
+}
+function highlight(str) {
+  const s = str == null ? '' : String(str);
+  if (!query) return escapeHtml(s);
+  const lower = s.toLowerCase();
+  const q = query.toLowerCase();
+  let out = '';
+  let i = 0;
+  while (true) {
+    const idx = lower.indexOf(q, i);
+    if (idx === -1) { out += escapeHtml(s.slice(i)); break; }
+    out += escapeHtml(s.slice(i, idx)) + '<mark>' + escapeHtml(s.slice(idx, idx + q.length)) + '</mark>';
+    i = idx + q.length;
+  }
+  return out;
 }
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  setTimeout(() => t.classList.remove('show'), 2200);
 }
 function setSyncStatus(text) { document.getElementById('syncStatus').textContent = text; }
 
@@ -548,7 +502,7 @@ function rowToObj(row) { return { id: row.id, ...row.data }; }
 function objToRow(obj) { const { id, ...data } = obj; return { id, data }; }
 
 async function loadAll() {
-  setSyncStatus('Verbinde...');
+  setSyncStatus('Verbinde ...');
   const [bRes, kRes] = await Promise.all([
     db.from('bewerbungen').select('id, data'),
     db.from('kontakte').select('id, data'),
@@ -559,43 +513,62 @@ async function loadAll() {
   } else {
     cards = bRes.data.map(rowToObj);
   }
-  if (!kRes.error) {
-    contacts = kRes.data.map(rowToObj);
-  }
+  if (!kRes.error) contacts = kRes.data.map(rowToObj);
   setSyncStatus('Synchron');
   document.getElementById('addBtn').disabled = false;
-  renderBoard();
-  renderContacts();
+  renderAll();
 }
 
-function cardTitle(card) { return card.org || 'Ohne Namen'; }
-function cardSubtitle(card) { return card.subtitle || card.pos || ''; }
-function cardCategory(card) { return card.bereich || 'Sonstiges'; }
-function cardStatus(card) { return card.status || 'yellow'; }
+function cardCategory(c) { return c.bereich || 'Sonstiges'; }
+function cardStatus(c) { return c.status || 'yellow'; }
+function cardSubtitle(c) { return c.subtitle || c.pos || ''; }
+function contactCategory(c) { return c.bereich || 'Sonstiges'; }
+
+function cardMatches(c) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const hay = [c.org, cardSubtitle(c), c.person, c.mail, c.notes, cardCategory(c), c.link,
+    ...(c.mailverlauf || []).map(e => e.betreff)].filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(q);
+}
+function contactMatches(c) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const hay = [c.name, c.email, c.unternehmen, c.notizen, contactCategory(c)].filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(q);
+}
+
+function renderAll() { renderBoard(); renderContacts(); }
 
 function renderBoard() {
   const board = document.getElementById('board');
+  const visible = cards.filter(cardMatches);
+  document.getElementById('badgeB').textContent = visible.length;
   board.innerHTML = '';
+
+  if (query && visible.length === 0) {
+    board.innerHTML = '<div class="no-results">Keine Bewerbung passt zu &bdquo;' + escapeHtml(query) + '&ldquo;.</div>';
+    board.style.display = 'block';
+    return;
+  }
+  board.style.display = '';
+
   CATEGORIES.forEach(cat => {
+    const filtered = visible.filter(c => cardCategory(c) === cat.key);
     const col = document.createElement('div');
-    col.className = 'column';
-    col.dataset.bereich = cat.key;
-
-    const filtered = cards.filter(c => cardCategory(c) === cat.key);
-
+    col.className = 'column' + (query && filtered.length === 0 ? ' dim' : '');
     col.innerHTML =
       '<div class="column-head"><span class="column-title">' + escapeHtml(cat.label) + '</span>' +
       '<span class="count-pill">' + filtered.length + '</span></div>' +
-      '<div class="card-list" data-bereich="' + cat.key + '"></div>';
-
+      '<div class="card-list" data-bereich="' + escapeHtml(cat.key) + '"></div>';
     board.appendChild(col);
     const list = col.querySelector('.card-list');
 
     if (filtered.length === 0) {
-      const hint = document.createElement('div');
-      hint.className = 'empty-hint';
-      hint.textContent = 'Keine Einträge';
-      list.appendChild(hint);
+      const h = document.createElement('div');
+      h.className = 'empty-hint';
+      h.textContent = query ? '—' : 'Keine Einträge';
+      list.appendChild(h);
     }
 
     filtered.forEach(card => {
@@ -603,13 +576,15 @@ function renderBoard() {
       el.className = 'card status-' + cardStatus(card);
       el.draggable = true;
       el.dataset.id = card.id;
-      const mvCount = (card.mailverlauf || []).length;
+      const mv = (card.mailverlauf || []).length;
+      const st = cardStatus(card);
       el.innerHTML =
-        '<p class="card-org">' + escapeHtml(cardTitle(card)) + '</p>' +
-        (cardSubtitle(card) ? '<p class="card-pos">' + escapeHtml(cardSubtitle(card)) + '</p>' : '') +
-        (card.org && card.org !== cardTitle(card) ? '<span class="card-tag">' + escapeHtml(card.org) + '</span>' : '') +
-        '<div class="card-meta">' +
-        (mvCount ? '<span>' + mvCount + ' Mail(s)</span>' : '') +
+        '<p class="card-org">' + highlight(card.org || 'Ohne Namen') + '</p>' +
+        (cardSubtitle(card) ? '<p class="card-pos">' + highlight(cardSubtitle(card)) + '</p>' : '') +
+        '<div class="card-foot">' +
+        '<span class="chip chip-' + st + '">' + STATUS_LABEL[st] + '</span>' +
+        (card.person ? '<span>' + highlight(card.person) + '</span>' : '') +
+        (mv ? '<span>' + mv + ' Mail' + (mv > 1 ? 's' : '') + '</span>' : '') +
         (card.datum ? '<span>' + escapeHtml(card.datum) + '</span>' : '') +
         '</div>';
       el.addEventListener('click', () => openCardModal(card.id));
@@ -619,7 +594,7 @@ function renderBoard() {
     });
   });
 
-  document.querySelectorAll('.card-list').forEach(list => {
+  board.querySelectorAll('.card-list').forEach(list => {
     list.addEventListener('dragover', e => { e.preventDefault(); list.classList.add('drag-over'); });
     list.addEventListener('dragleave', () => list.classList.remove('drag-over'));
     list.addEventListener('drop', async e => {
@@ -627,43 +602,47 @@ function renderBoard() {
       list.classList.remove('drag-over');
       const dragging = document.querySelector('.card.dragging');
       if (!dragging) return;
-      const id = dragging.dataset.id;
-      const card = cards.find(c => c.id === id);
-      const newBereich = list.dataset.bereich;
-      if (card && cardCategory(card) !== newBereich) {
-        card.bereich = newBereich;
+      const card = cards.find(c => c.id === dragging.dataset.id);
+      const nb = list.dataset.bereich;
+      if (card && cardCategory(card) !== nb) {
+        card.bereich = nb;
         renderBoard();
-        const { error } = await db.from('bewerbungen').update({ data: objToRow(card).data }).eq('id', id);
+        const { error } = await db.from('bewerbungen').update({ data: objToRow(card).data }).eq('id', card.id);
         if (error) showToast('Speichern fehlgeschlagen: ' + error.message);
       }
     });
   });
 }
 
-function contactCategory(contact) { return contact.bereich || 'Sonstiges'; }
-
 function renderContacts() {
   const board = document.getElementById('contactBoard');
+  const visible = contacts.filter(contactMatches);
+  document.getElementById('badgeN').textContent = visible.length;
   board.innerHTML = '';
+
+  if (query && visible.length === 0) {
+    board.innerHTML = '<div class="no-results">Kein Kontakt passt zu &bdquo;' + escapeHtml(query) + '&ldquo;.</div>';
+    board.style.display = 'block';
+    return;
+  }
+  board.style.display = '';
+
   CATEGORIES.forEach(cat => {
+    const filtered = visible.filter(c => contactCategory(c) === cat.key);
     const col = document.createElement('div');
-    col.className = 'column';
-
-    const filtered = contacts.filter(c => contactCategory(c) === cat.key);
-
+    col.className = 'column' + (query && filtered.length === 0 ? ' dim' : '');
     col.innerHTML =
       '<div class="column-head"><span class="column-title">' + escapeHtml(cat.label) + '</span>' +
       '<span class="count-pill">' + filtered.length + '</span></div>' +
-      '<div class="card-list contact-list" data-bereich="' + cat.key + '"></div>';
-
+      '<div class="card-list contact-list" data-bereich="' + escapeHtml(cat.key) + '"></div>';
     board.appendChild(col);
     const list = col.querySelector('.card-list');
 
     if (filtered.length === 0) {
-      const hint = document.createElement('div');
-      hint.className = 'empty-hint';
-      hint.textContent = 'Keine Kontakte';
-      list.appendChild(hint);
+      const h = document.createElement('div');
+      h.className = 'empty-hint';
+      h.textContent = query ? '—' : 'Keine Kontakte';
+      list.appendChild(h);
     }
 
     filtered.forEach(contact => {
@@ -672,11 +651,11 @@ function renderContacts() {
       el.draggable = true;
       el.dataset.id = contact.id;
       el.innerHTML =
-        '<p class="card-org">' + escapeHtml(contact.name || contact.email || 'Unbekannt') + '</p>' +
-        (contact.unternehmen ? '<p class="card-pos">' + escapeHtml(contact.unternehmen) + '</p>' : '') +
-        (contact.email ? '<div class="contact-email">' + escapeHtml(contact.email) + '</div>' : '') +
-        '<div class="card-meta">' +
-        (contact.letzter_kontakt ? '<span>Zuletzt ' + escapeHtml(contact.letzter_kontakt) + '</span>' : '') +
+        '<p class="card-org">' + highlight(contact.name || contact.email || 'Unbekannt') + '</p>' +
+        (contact.unternehmen ? '<p class="card-pos">' + highlight(contact.unternehmen) + '</p>' : '') +
+        '<div class="card-foot">' +
+        (contact.email ? '<span>' + highlight(contact.email) + '</span>' : '') +
+        (contact.letzter_kontakt ? '<span>' + escapeHtml(contact.letzter_kontakt) + '</span>' : '') +
         '</div>';
       el.addEventListener('click', () => openContactModal(contact.id));
       el.addEventListener('dragstart', () => el.classList.add('dragging'));
@@ -685,7 +664,7 @@ function renderContacts() {
     });
   });
 
-  document.querySelectorAll('.contact-list').forEach(list => {
+  board.querySelectorAll('.contact-list').forEach(list => {
     list.addEventListener('dragover', e => { e.preventDefault(); list.classList.add('drag-over'); });
     list.addEventListener('dragleave', () => list.classList.remove('drag-over'));
     list.addEventListener('drop', async e => {
@@ -693,18 +672,37 @@ function renderContacts() {
       list.classList.remove('drag-over');
       const dragging = document.querySelector('.contact-item.dragging');
       if (!dragging) return;
-      const id = dragging.dataset.id;
-      const contact = contacts.find(c => c.id === id);
-      const newBereich = list.dataset.bereich;
-      if (contact && contactCategory(contact) !== newBereich) {
-        contact.bereich = newBereich;
+      const contact = contacts.find(c => c.id === dragging.dataset.id);
+      const nb = list.dataset.bereich;
+      if (contact && contactCategory(contact) !== nb) {
+        contact.bereich = nb;
         renderContacts();
-        const { error } = await db.from('kontakte').update({ data: objToRow(contact).data }).eq('id', id);
+        const { error } = await db.from('kontakte').update({ data: objToRow(contact).data }).eq('id', contact.id);
         if (error) showToast('Speichern fehlgeschlagen: ' + error.message);
       }
     });
   });
 }
+
+/* Suche */
+const searchInput = document.getElementById('searchInput');
+const searchClear = document.getElementById('searchClear');
+searchInput.addEventListener('input', () => {
+  query = searchInput.value.trim();
+  searchClear.classList.toggle('show', query.length > 0);
+  renderAll();
+});
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  query = '';
+  searchClear.classList.remove('show');
+  renderAll();
+  searchInput.focus();
+});
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); searchInput.select(); }
+  if (e.key === 'Escape' && document.activeElement === searchInput) { searchClear.click(); searchInput.blur(); }
+});
 
 /* Tabs */
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -713,7 +711,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + btn.dataset.view).classList.add('active');
-    document.getElementById('addBtn').textContent = btn.dataset.view === 'netzwerk' ? '+ Neuer Kontakt' : '+ Neue Bewerbung';
+    document.getElementById('addBtn').textContent = btn.dataset.view === 'netzwerk' ? '+ Kontakt' : '+ Bewerbung';
   });
 });
 
@@ -742,12 +740,12 @@ function closeCardModal() {
   editingCardId = null;
 }
 function updateStatusRow() {
-  document.querySelectorAll('#statusRow .status-opt').forEach(opt => {
-    opt.classList.toggle('active', opt.dataset.status === currentStatus);
+  document.querySelectorAll('#statusRow .status-opt').forEach(o => {
+    o.classList.toggle('active', o.dataset.status === currentStatus);
   });
 }
-document.querySelectorAll('#statusRow .status-opt').forEach(opt => {
-  opt.addEventListener('click', () => { currentStatus = opt.dataset.status; updateStatusRow(); });
+document.querySelectorAll('#statusRow .status-opt').forEach(o => {
+  o.addEventListener('click', () => { currentStatus = o.dataset.status; updateStatusRow(); });
 });
 
 function renderMailverlauf() {
@@ -757,7 +755,7 @@ function renderMailverlauf() {
     list.innerHTML = '<div class="mailverlauf-empty">Noch keine Einträge</div>';
     return;
   }
-  currentMailverlauf.slice().reverse().forEach((entry) => {
+  currentMailverlauf.slice().reverse().forEach(entry => {
     const row = document.createElement('div');
     row.className = 'mailverlauf-entry';
     row.innerHTML =
@@ -769,14 +767,13 @@ function renderMailverlauf() {
 document.getElementById('addMailEntryBtn').addEventListener('click', () => {
   const betreff = prompt('Kurze Notiz zu diesem Kontakt:');
   if (betreff === null || betreff.trim() === '') return;
-  const datum = new Date().toISOString().slice(0, 10);
-  currentMailverlauf.push({ datum, betreff: betreff.trim() });
+  currentMailverlauf.push({ datum: new Date().toISOString().slice(0, 10), betreff: betreff.trim() });
   renderMailverlauf();
 });
 
 document.getElementById('addBtn').addEventListener('click', () => {
-  const netzwerkActive = document.getElementById('view-netzwerk').classList.contains('active');
-  if (netzwerkActive) openContactModal(null); else openCardModal(null);
+  const n = document.getElementById('view-netzwerk').classList.contains('active');
+  if (n) openContactModal(null); else openCardModal(null);
 });
 document.getElementById('cancelBtn').addEventListener('click', closeCardModal);
 document.getElementById('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeCardModal(); });
@@ -784,12 +781,11 @@ document.getElementById('overlay').addEventListener('click', e => { if (e.target
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const org = document.getElementById('f-org').value.trim();
   if (!org) {
-    document.getElementById('f-org').style.borderColor = '#c0392b';
+    document.getElementById('f-org').style.borderColor = '#c2553d';
     showToast('Bitte Organisation eintragen');
     return;
   }
   document.getElementById('f-org').style.borderColor = '';
-
   const saveBtn = document.getElementById('saveBtn');
   saveBtn.disabled = true;
 
@@ -808,19 +804,17 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
   let card;
   if (editingCardId) {
-    const idx = cards.findIndex(c => c.id === editingCardId);
-    card = { ...cards[idx], ...data };
-    cards[idx] = card;
+    const i = cards.findIndex(c => c.id === editingCardId);
+    card = { ...cards[i], ...data };
+    cards[i] = card;
   } else {
     card = { id: uid(), ...data };
     cards.push(card);
   }
 
-  const row = objToRow(card);
-  const { error } = await db.from('bewerbungen').upsert(row);
+  const { error } = await db.from('bewerbungen').upsert(objToRow(card));
   saveBtn.disabled = false;
   if (error) { showToast('Speichern fehlgeschlagen: ' + error.message); return; }
-
   renderBoard();
   closeCardModal();
   showToast('Gespeichert');
@@ -840,16 +834,16 @@ document.getElementById('deleteBtn').addEventListener('click', async () => {
 /* Kontakt Modal */
 function openContactModal(id) {
   editingContactId = id || null;
-  const contact = id ? contacts.find(c => c.id === id) : null;
-  document.getElementById('contactModalTitle').textContent = contact ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
-  document.getElementById('c-name').value = contact ? (contact.name || '') : '';
-  document.getElementById('c-email').value = contact ? (contact.email || '') : '';
-  document.getElementById('c-unternehmen').value = contact ? (contact.unternehmen || '') : '';
-  document.getElementById('c-bereich').value = contact ? contactCategory(contact) : 'Sonstiges';
-  document.getElementById('c-erster').value = contact ? (contact.erster_kontakt || '') : '';
-  document.getElementById('c-letzter').value = contact ? (contact.letzter_kontakt || '') : '';
-  document.getElementById('c-notizen').value = contact ? (contact.notizen || '') : '';
-  document.getElementById('contactDeleteBtn').style.display = contact ? 'inline-block' : 'none';
+  const c = id ? contacts.find(x => x.id === id) : null;
+  document.getElementById('contactModalTitle').textContent = c ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
+  document.getElementById('c-name').value = c ? (c.name || '') : '';
+  document.getElementById('c-email').value = c ? (c.email || '') : '';
+  document.getElementById('c-unternehmen').value = c ? (c.unternehmen || '') : '';
+  document.getElementById('c-bereich').value = c ? contactCategory(c) : 'Sonstiges';
+  document.getElementById('c-erster').value = c ? (c.erster_kontakt || '') : '';
+  document.getElementById('c-letzter').value = c ? (c.letzter_kontakt || '') : '';
+  document.getElementById('c-notizen').value = c ? (c.notizen || '') : '';
+  document.getElementById('contactDeleteBtn').style.display = c ? 'inline-block' : 'none';
   document.getElementById('contactOverlay').classList.add('open');
 }
 function closeContactModal() {
@@ -862,12 +856,11 @@ document.getElementById('contactOverlay').addEventListener('click', e => { if (e
 document.getElementById('contactSaveBtn').addEventListener('click', async () => {
   const name = document.getElementById('c-name').value.trim();
   if (!name) {
-    document.getElementById('c-name').style.borderColor = '#c0392b';
+    document.getElementById('c-name').style.borderColor = '#c2553d';
     showToast('Bitte Namen eintragen');
     return;
   }
   document.getElementById('c-name').style.borderColor = '';
-
   const btn = document.getElementById('contactSaveBtn');
   btn.disabled = true;
 
@@ -883,19 +876,17 @@ document.getElementById('contactSaveBtn').addEventListener('click', async () => 
 
   let contact;
   if (editingContactId) {
-    const idx = contacts.findIndex(c => c.id === editingContactId);
-    contact = { ...contacts[idx], ...data };
-    contacts[idx] = contact;
+    const i = contacts.findIndex(x => x.id === editingContactId);
+    contact = { ...contacts[i], ...data };
+    contacts[i] = contact;
   } else {
     contact = { id: uid(), ...data };
     contacts.push(contact);
   }
 
-  const row = objToRow(contact);
-  const { error } = await db.from('kontakte').upsert(row);
+  const { error } = await db.from('kontakte').upsert(objToRow(contact));
   btn.disabled = false;
   if (error) { showToast('Speichern fehlgeschlagen: ' + error.message); return; }
-
   renderContacts();
   closeContactModal();
   showToast('Gespeichert');
