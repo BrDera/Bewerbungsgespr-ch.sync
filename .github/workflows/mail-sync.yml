@@ -2,7 +2,7 @@ name: Bewerbungs-Mail-Sync
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 4 * * *'
   workflow_dispatch:
 
 jobs:
@@ -24,4 +24,3 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python sync_mail.py
-
