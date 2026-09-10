@@ -2,20 +2,20 @@
 Bewerbungs-Mail-Sync (Cloud-Version, regelbasiert - keine bezahlte KI-API)
 
 Durchsucht per IMAP den Sent-Ordner einer iCloud-Adresse nach Mails der
-letzten 2 Tage, filtert nach Stichwoertern im Betreff und im Text,
-gruppiert Treffer PRO FIRMA (per Empfaenger-Domain) und pflegt dafuer
+letzten 2 Tage, filtert nach Stichwörtern im Betreff und im Text,
+gruppiert Treffer PRO FIRMA (per Empfänger-Domain) und pflegt dafür
 jeweils genau eine Zeile in der Supabase-Tabelle "bewerbungen" inkl.
-Mailverlauf. Ausserdem wird pro Empfaenger ein Eintrag in der Tabelle
-"kontakte" gepflegt (fuer den Netzwerk-Tab im Board).
+Mailverlauf. Außerdem wird pro Empfänger ein Eintrag in der Tabelle
+"kontakte" gepflegt (für den Netzwerk-Tab im Board).
 
-Gedacht zum Ausfuehren in GitHub Actions nach Zeitplan - siehe
-mail-sync.yml. Benoetigte Umgebungsvariablen (als GitHub Secrets):
+Gedacht zum Ausführen in GitHub Actions nach Zeitplan - siehe
+mail-sync.yml. Benötigte Umgebungsvariablen (als GitHub Secrets):
   ICLOUD_EMAIL         volle iCloud-Adresse, z.B. name@icloud.com
   ICLOUD_APP_PASSWORD  App-spezifisches Passwort von appleid.apple.com
   SUPABASE_URL         z.B. https://xxxx.supabase.co
   SUPABASE_ANON_KEY    der "anon public" Key aus Supabase
 
-Nutzt nur die Python-Standardbibliothek, kein pip install noetig.
+Nutzt nur die Python-Standardbibliothek, kein pip install nötig.
 """
 
 import imaplib
@@ -33,8 +33,8 @@ from email.utils import parseaddr, parsedate_to_datetime
 IMAP_HOST = "imap.mail.me.com"
 IMAP_PORT = 993
 
-# Stichwoerter, die im Betreff ODER im Text auf eine Bewerbung hindeuten
-# (klein geschrieben). Bei Bedarf ergaenzen/anpassen.
+# Stichwörter, die im Betreff ODER im Text auf eine Bewerbung hindeuten
+# (klein geschrieben). Bei Bedarf ergänzen/anpassen.
 KEYWORDS = ["bewerbung", "anschreiben", "application", "praktikum", "initiativbewerbung"]
 
 CANDIDATE_SENT_FOLDERS = ["Sent Messages", "Sent", "INBOX.Sent Messages"]
@@ -43,7 +43,7 @@ MAX_BODY_CHARS = 20000
 
 CATEGORIES = [
     "Journalismus",
-    "Gruendung/Gruendungszentrum",
+    "Gründung/Gründungszentrum",
     "Wissenschaft/Akademisch",
     "Start-up",
     "KI",
@@ -51,20 +51,20 @@ CATEGORIES = [
     "Sonstiges",
 ]
 
-# Regelbasierte Kategorie-Zuordnung: Schluesselwort -> Kategorie.
-# Wird gegen Betreff + Text + Empfaenger-Domain geprueft, erster Treffer gewinnt.
+# Regelbasierte Kategorie-Zuordnung: Schlüsselwort -> Kategorie.
+# Wird gegen Betreff + Text + Empfänger-Domain geprüft, erster Treffer gewinnt.
 CATEGORY_RULES = [
     ("Journalismus", ["redaktion", "journalismus", "journalist", "presse", "rundfunk", "podcast", "nachrichten"]),
-    ("Start-up", ["start-up", "startup", "founder", "gruender", "cfo", "coo", "cto"]),
-    ("Gruendung/Gruendungszentrum", ["stiftung", "accelerator", "inkubator", "gruendungszentrum", "entrepreneurship"]),
-    ("Wissenschaft/Akademisch", ["universitaet", "uni ", "hochschule", "forschung", "wissenschaftlich", "lehrstuhl", "institut"]),
-    ("KI", ["kuenstliche intelligenz", " ki ", "artificial intelligence", "machine learning", " ai "]),
-    ("Kurzfristig/Nebenjob", ["nebenjob", "aushilfe", "kellner", "kellnerin", "lieferant", "fahrer", "cafe", "café"]),
+    ("Start-up", ["start-up", "startup", "founder", "gründer", "gruender", "cfo", "coo", "cto"]),
+    ("Gründung/Gründungszentrum", ["stiftung", "accelerator", "inkubator", "gründungszentrum", "gruendungszentrum", "entrepreneurship"]),
+    ("Wissenschaft/Akademisch", ["universität", "universitaet", "uni ", "hochschule", "forschung", "wissenschaftlich", "lehrstuhl", "institut"]),
+    ("KI", ["künstliche intelligenz", "kuenstliche intelligenz", " ki ", "artificial intelligence", "machine learning", " ai "]),
+    ("Kurzfristig/Nebenjob", ["nebenjob", "aushilfe", "kellner", "kellnerin", "lieferant", "fahrer", "café", "cafe"]),
 ]
 
 # Regex-Muster, die eine ganze Positions-/Rollenphrase einfangen (nicht nur
 # ein einzelnes Wort), z.B. "Associate to the CFO/COO" oder "Praktikum Redaktion".
-# Werden der Reihe nach gegen Betreff+Text (Originalgross-/Kleinschreibung) geprueft.
+# Werden der Reihe nach gegen Betreff+Text (Original-Groß-/Kleinschreibung) geprüft.
 POSITION_PATTERNS = [
     r"Associate\s+(?:to|for|at)\s+the\s+[\w/]+(?:\s+[\w/]+)?",
     r"Praktikum(?:s)?\s*(?:als\s+)?[A-ZÄÖÜ][\wÄÖÜäöüß]+(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß]+)?",
@@ -179,21 +179,8 @@ def matches_keywords(text):
     return any(kw in lower for kw in KEYWORDS)
 
 
-def clean_headline(subject):
-    """Entfernt Re:/AW:/Fwd: und generische Praefixe aus dem Betreff."""
-    cleaned = subject.strip()
-    cleaned = re.sub(r"^(re|aw|fwd|wg)\s*:\s*", "", cleaned, flags=re.IGNORECASE).strip()
-    # Haeufiges Muster: "Your application at X - <eigentliches Thema>"
-    match = re.search(r"[-\u2013]\s*(.+)$", cleaned)
-    if match and len(match.group(1)) >= 4:
-        cleaned = match.group(1).strip()
-    if len(cleaned) > 60:
-        cleaned = cleaned[:57].rstrip() + "..."
-    return cleaned or subject.strip()
-
-
 def guess_subtitle(combined_text):
-    """Sucht eine ganze Positions-/Rollenphrase im Original-Text (Gross-/
+    """Sucht eine ganze Positions-/Rollenphrase im Original-Text (Groß-/
     Kleinschreibung erhalten), damit z.B. 'Associate to the CFO/COO' oder
     'Praktikum Redaktion' komplett erkannt werden, nicht nur ein Wort."""
     for pattern in POSITION_PATTERNS:
@@ -292,7 +279,6 @@ def main():
             except Exception:
                 iso_date = ""
 
-            headline = clean_headline(subject)
             subtitle = guess_subtitle(combined_text)
             bereich = guess_category(combined_lower, domain)
             org = guess_org_from_domain(domain)
@@ -317,7 +303,6 @@ def main():
                 if person:
                     new_data["person"] = person
                 new_data.setdefault("org", org)
-                new_data.setdefault("headline", headline)
                 new_data.setdefault("subtitle", subtitle)
                 new_data.setdefault("bereich", bereich)
                 new_data.setdefault("status", "yellow")
@@ -327,7 +312,6 @@ def main():
             else:
                 new_data = {
                     "org": org,
-                    "headline": headline,
                     "subtitle": subtitle,
                     "bereich": bereich,
                     "person": person,
@@ -350,12 +334,14 @@ def main():
                 if person:
                     contact_data["name"] = person
                 contact_data.setdefault("unternehmen", org)
+                contact_data.setdefault("bereich", bereich)
                 contact_data.setdefault("notizen", "")
             else:
                 contact_data = {
                     "name": person or (recipient.split("@")[0] if "@" in recipient else recipient),
                     "email": recipient,
                     "unternehmen": org,
+                    "bereich": bereich,
                     "erster_kontakt": iso_date,
                     "letzter_kontakt": iso_date,
                     "notizen": "",
