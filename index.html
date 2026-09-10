@@ -22,6 +22,8 @@
     --yellow-soft: #fdf6e7;
     --green: #3f8d68;
     --green-soft: #edf6f1;
+    --blue: #3b6ea5;
+    --blue-soft: #eef3f9;
 
     --radius: 10px;
     --shadow: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
@@ -57,25 +59,27 @@
 
   .topbar-tools { display: flex; align-items: center; gap: 10px; }
 
-  .search-wrap { position: relative; }
-  .search-wrap svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); opacity: .5; }
+  .searchbar { padding: 16px 24px 0; }
+  .search-wrap { position: relative; max-width: 340px; }
+  .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); }
   .search-input {
-    background: rgba(255,255,255,.10);
-    border: 1px solid rgba(255,255,255,.16);
-    color: #fff;
-    border-radius: 8px;
-    padding: 7px 28px 7px 30px;
-    font-size: 13px;
+    background: #fff;
+    border: 1px solid var(--border);
+    color: var(--ink);
+    border-radius: 9px;
+    padding: 9px 30px 9px 32px;
+    font-size: 13.5px;
     font-family: inherit;
-    width: 220px;
-    transition: background .15s, border-color .15s, width .15s;
+    width: 100%;
+    box-shadow: var(--shadow);
+    transition: border-color .15s, box-shadow .15s;
   }
-  .search-input::placeholder { color: rgba(255,255,255,.55); }
-  .search-input:focus { outline: none; background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.35); width: 260px; }
+  .search-input::placeholder { color: var(--ink-faint); }
+  .search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,111,94,.10); }
   .search-clear {
-    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; color: rgba(255,255,255,.6);
-    cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; display: none;
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--ink-faint);
+    cursor: pointer; font-size: 17px; line-height: 1; padding: 2px 4px; display: none;
   }
   .search-clear.show { display: block; }
 
@@ -159,9 +163,10 @@
   .card:active { cursor: grabbing; }
   .card.dragging { opacity: .35; }
 
-  .card.status-red { border-left-color: var(--red); }
-  .card.status-yellow { border-left-color: var(--yellow); }
-  .card.status-green { border-left-color: var(--green); }
+  .card.status-offen { border-left-color: var(--yellow); }
+  .card.status-abgelehnt { border-left-color: var(--red); }
+  .card.status-angenommen { border-left-color: var(--green); }
+  .card.status-talent_pool { border-left-color: var(--blue); }
 
   .card-org { font-size: 13.5px; font-weight: 600; margin: 0 0 1px; letter-spacing: -.005em; }
   .card-pos { font-size: 12px; color: var(--ink-soft); margin: 0; line-height: 1.35; }
@@ -173,9 +178,10 @@
     display: inline-flex; align-items: center; gap: 4px;
     padding: 2px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 500;
   }
-  .chip-red { background: var(--red-soft); color: var(--red); }
-  .chip-yellow { background: var(--yellow-soft); color: var(--yellow); }
-  .chip-green { background: var(--green-soft); color: var(--green); }
+  .chip-offen { background: var(--yellow-soft); color: var(--yellow); }
+  .chip-abgelehnt { background: var(--red-soft); color: var(--red); }
+  .chip-angenommen { background: var(--green-soft); color: var(--green); }
+  .chip-talent_pool { background: var(--blue-soft); color: var(--blue); }
 
   mark { background: #fdf0b8; color: inherit; padding: 0 1px; border-radius: 2px; }
 
@@ -225,9 +231,12 @@
     transition: all .12s;
   }
   .status-opt:hover { border-color: var(--ink-faint); }
-  .status-opt[data-status="red"].active { background: var(--red-soft); border-color: var(--red); color: var(--red); font-weight: 600; }
-  .status-opt[data-status="yellow"].active { background: var(--yellow-soft); border-color: var(--yellow); color: var(--yellow); font-weight: 600; }
-  .status-opt[data-status="green"].active { background: var(--green-soft); border-color: var(--green); color: var(--green); font-weight: 600; }
+  .status-opt[data-status="offen"].active { background: var(--yellow-soft); border-color: var(--yellow); color: var(--yellow); font-weight: 600; }
+  .status-opt[data-status="abgelehnt"].active { background: var(--red-soft); border-color: var(--red); color: var(--red); font-weight: 600; }
+  .status-opt[data-status="angenommen"].active { background: var(--green-soft); border-color: var(--green); color: var(--green); font-weight: 600; }
+  .status-opt[data-status="talent_pool"].active { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); font-weight: 600; }
+  .status-row { flex-wrap: wrap; }
+  .status-opt { min-width: 88px; }
 
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 
@@ -277,9 +286,8 @@
 
   @media (max-width: 720px) {
     .board { grid-auto-flow: row; grid-auto-columns: auto; padding: 16px; }
-    .search-input, .search-input:focus { width: 100%; }
-    .search-wrap { flex: 1; }
-    .topbar-tools { width: 100%; }
+    .searchbar { padding: 14px 16px 0; }
+    .search-wrap { max-width: none; }
   }
 </style>
 </head>
@@ -292,11 +300,6 @@
       <h1>Bewerbungs-Kanban</h1>
     </div>
     <div class="topbar-tools">
-      <div class="search-wrap">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input class="search-input" id="searchInput" type="text" placeholder="Suchen ..." autocomplete="off">
-        <button class="search-clear" id="searchClear" title="Suche löschen">&times;</button>
-      </div>
       <span class="sync-status" id="syncStatus">Verbinde ...</span>
       <button class="add-btn" id="addBtn" disabled>+ Neu</button>
     </div>
@@ -308,10 +311,24 @@
 </div>
 
 <div class="view active" id="view-bewerbungen">
+  <div class="searchbar">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input class="search-input" id="searchB" type="text" placeholder="Bewerbungen durchsuchen ..." autocomplete="off">
+      <button class="search-clear" id="clearB" title="Suche löschen">&times;</button>
+    </div>
+  </div>
   <div class="board" id="board"></div>
 </div>
 
 <div class="view" id="view-netzwerk">
+  <div class="searchbar">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input class="search-input" id="searchN" type="text" placeholder="Kontakte durchsuchen ..." autocomplete="off">
+      <button class="search-clear" id="clearN" title="Suche löschen">&times;</button>
+    </div>
+  </div>
   <div class="board" id="contactBoard"></div>
 </div>
 
@@ -321,9 +338,10 @@
     <h2 id="modalTitle">Neue Bewerbung</h2>
 
     <div class="status-row" id="statusRow">
-      <div class="status-opt" data-status="red">Nichts zurück</div>
-      <div class="status-opt" data-status="yellow">Offen</div>
-      <div class="status-opt" data-status="green">Angenommen</div>
+      <div class="status-opt" data-status="offen">Offen</div>
+      <div class="status-opt" data-status="abgelehnt">Abgelehnt</div>
+      <div class="status-opt" data-status="angenommen">Angenommen</div>
+      <div class="status-opt" data-status="talent_pool">Talent Pool</div>
     </div>
 
     <div class="field">
@@ -339,11 +357,10 @@
         <label for="f-bereich">Bereich</label>
         <select id="f-bereich">
           <option value="Journalismus">Journalismus</option>
-          <option value="Gründung/Gründungszentrum">Gründung/Gründungszentrum</option>
-          <option value="Wissenschaft/Akademisch">Wissenschaft/Akademisch</option>
+          <option value="Wissenschaft">Wissenschaft</option>
           <option value="Start-up">Start-up</option>
+          <option value="Gründungszentrum">Gründungszentrum</option>
           <option value="KI">KI</option>
-          <option value="Kurzfristig/Nebenjob">Kurzfristig/Nebenjob</option>
           <option value="Sonstiges">Sonstiges</option>
         </select>
       </div>
@@ -410,11 +427,10 @@
       <label for="c-bereich">Bereich</label>
       <select id="c-bereich">
         <option value="Journalismus">Journalismus</option>
-        <option value="Gründung/Gründungszentrum">Gründung/Gründungszentrum</option>
-        <option value="Wissenschaft/Akademisch">Wissenschaft/Akademisch</option>
+        <option value="Wissenschaft">Wissenschaft</option>
         <option value="Start-up">Start-up</option>
+        <option value="Gründungszentrum">Gründungszentrum</option>
         <option value="KI">KI</option>
-        <option value="Kurzfristig/Nebenjob">Kurzfristig/Nebenjob</option>
         <option value="Sonstiges">Sonstiges</option>
       </select>
     </div>
@@ -451,23 +467,43 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const CATEGORIES = [
   { key: 'Journalismus', label: 'Journalismus' },
-  { key: 'Gründung/Gründungszentrum', label: 'Gründung' },
-  { key: 'Wissenschaft/Akademisch', label: 'Wissenschaft' },
+  { key: 'Wissenschaft', label: 'Wissenschaft' },
   { key: 'Start-up', label: 'Start-up' },
+  { key: 'Gründungszentrum', label: 'Gründungszentrum' },
   { key: 'KI', label: 'KI' },
-  { key: 'Kurzfristig/Nebenjob', label: 'Nebenjob' },
   { key: 'Sonstiges', label: 'Sonstiges' },
 ];
 
-const STATUS_LABEL = { red: 'Nichts zurück', yellow: 'Offen', green: 'Angenommen' };
+const STATUSES = [
+  { key: 'offen', label: 'Offen' },
+  { key: 'abgelehnt', label: 'Abgelehnt' },
+  { key: 'angenommen', label: 'Angenommen' },
+  { key: 'talent_pool', label: 'Talent Pool' },
+];
+const STATUS_LABEL = { offen: 'Offen', abgelehnt: 'Abgelehnt', angenommen: 'Angenommen', talent_pool: 'Talent Pool' };
+
+// Altbestand auf die neuen Werte abbilden
+const LEGACY_STATUS = { yellow: 'offen', red: 'abgelehnt', green: 'angenommen' };
+const LEGACY_CATEGORY = {
+  'Gründung/Gründungszentrum': 'Gründungszentrum',
+  'Wissenschaft/Akademisch': 'Wissenschaft',
+  'Kurzfristig/Nebenjob': 'Sonstiges',
+};
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? m[3] + '.' + m[2] + '.' + m[1] : iso;
+}
 
 let cards = [];
 let contacts = [];
 let editingCardId = null;
 let editingContactId = null;
-let currentStatus = 'yellow';
+let currentStatus = 'offen';
 let currentMailverlauf = [];
-let query = '';
+let queryB = '';
+let queryN = '';
 
 function uid() { return 'c' + Date.now() + Math.random().toString(16).slice(2, 8); }
 function escapeHtml(str) {
@@ -475,7 +511,7 @@ function escapeHtml(str) {
   d.textContent = str == null ? '' : str;
   return d.innerHTML;
 }
-function highlight(str) {
+function highlight(str, query) {
   const s = str == null ? '' : String(str);
   if (!query) return escapeHtml(s);
   const lower = s.toLowerCase();
@@ -519,21 +555,30 @@ async function loadAll() {
   renderAll();
 }
 
-function cardCategory(c) { return c.bereich || 'Sonstiges'; }
-function cardStatus(c) { return c.status || 'yellow'; }
+function cardCategory(c) {
+  const b = c.bereich || 'Sonstiges';
+  return LEGACY_CATEGORY[b] || b;
+}
+function cardStatus(c) {
+  const s = c.status || 'offen';
+  return LEGACY_STATUS[s] || s;
+}
 function cardSubtitle(c) { return c.subtitle || c.pos || ''; }
-function contactCategory(c) { return c.bereich || 'Sonstiges'; }
+function contactCategory(c) {
+  const b = c.bereich || 'Sonstiges';
+  return LEGACY_CATEGORY[b] || b;
+}
 
 function cardMatches(c) {
-  if (!query) return true;
-  const q = query.toLowerCase();
+  if (!queryB) return true;
+  const q = queryB.toLowerCase();
   const hay = [c.org, cardSubtitle(c), c.person, c.mail, c.notes, cardCategory(c), c.link,
     ...(c.mailverlauf || []).map(e => e.betreff)].filter(Boolean).join(' ').toLowerCase();
   return hay.includes(q);
 }
 function contactMatches(c) {
-  if (!query) return true;
-  const q = query.toLowerCase();
+  if (!queryN) return true;
+  const q = queryN.toLowerCase();
   const hay = [c.name, c.email, c.unternehmen, c.notizen, contactCategory(c)].filter(Boolean).join(' ').toLowerCase();
   return hay.includes(q);
 }
@@ -546,8 +591,8 @@ function renderBoard() {
   document.getElementById('badgeB').textContent = visible.length;
   board.innerHTML = '';
 
-  if (query && visible.length === 0) {
-    board.innerHTML = '<div class="no-results">Keine Bewerbung passt zu &bdquo;' + escapeHtml(query) + '&ldquo;.</div>';
+  if (queryB && visible.length === 0) {
+    board.innerHTML = '<div class="no-results">Keine Bewerbung passt zu &bdquo;' + escapeHtml(queryB) + '&ldquo;.</div>';
     board.style.display = 'block';
     return;
   }
@@ -556,7 +601,7 @@ function renderBoard() {
   CATEGORIES.forEach(cat => {
     const filtered = visible.filter(c => cardCategory(c) === cat.key);
     const col = document.createElement('div');
-    col.className = 'column' + (query && filtered.length === 0 ? ' dim' : '');
+    col.className = 'column' + (queryB && filtered.length === 0 ? ' dim' : '');
     col.innerHTML =
       '<div class="column-head"><span class="column-title">' + escapeHtml(cat.label) + '</span>' +
       '<span class="count-pill">' + filtered.length + '</span></div>' +
@@ -567,7 +612,7 @@ function renderBoard() {
     if (filtered.length === 0) {
       const h = document.createElement('div');
       h.className = 'empty-hint';
-      h.textContent = query ? '—' : 'Keine Einträge';
+      h.textContent = queryB ? '—' : 'Keine Einträge';
       list.appendChild(h);
     }
 
@@ -579,13 +624,13 @@ function renderBoard() {
       const mv = (card.mailverlauf || []).length;
       const st = cardStatus(card);
       el.innerHTML =
-        '<p class="card-org">' + highlight(card.org || 'Ohne Namen') + '</p>' +
-        (cardSubtitle(card) ? '<p class="card-pos">' + highlight(cardSubtitle(card)) + '</p>' : '') +
+        '<p class="card-org">' + highlight(card.org || 'Ohne Namen', queryB) + '</p>' +
+        (cardSubtitle(card) ? '<p class="card-pos">' + highlight(cardSubtitle(card), queryB) + '</p>' : '') +
         '<div class="card-foot">' +
         '<span class="chip chip-' + st + '">' + STATUS_LABEL[st] + '</span>' +
-        (card.person ? '<span>' + highlight(card.person) + '</span>' : '') +
+        (card.person ? '<span>' + highlight(card.person, queryB) + '</span>' : '') +
         (mv ? '<span>' + mv + ' Mail' + (mv > 1 ? 's' : '') + '</span>' : '') +
-        (card.datum ? '<span>' + escapeHtml(card.datum) + '</span>' : '') +
+        (card.datum ? '<span>' + escapeHtml(fmtDate(card.datum)) + '</span>' : '') +
         '</div>';
       el.addEventListener('click', () => openCardModal(card.id));
       el.addEventListener('dragstart', () => el.classList.add('dragging'));
@@ -620,8 +665,8 @@ function renderContacts() {
   document.getElementById('badgeN').textContent = visible.length;
   board.innerHTML = '';
 
-  if (query && visible.length === 0) {
-    board.innerHTML = '<div class="no-results">Kein Kontakt passt zu &bdquo;' + escapeHtml(query) + '&ldquo;.</div>';
+  if (queryN && visible.length === 0) {
+    board.innerHTML = '<div class="no-results">Kein Kontakt passt zu &bdquo;' + escapeHtml(queryN) + '&ldquo;.</div>';
     board.style.display = 'block';
     return;
   }
@@ -630,7 +675,7 @@ function renderContacts() {
   CATEGORIES.forEach(cat => {
     const filtered = visible.filter(c => contactCategory(c) === cat.key);
     const col = document.createElement('div');
-    col.className = 'column' + (query && filtered.length === 0 ? ' dim' : '');
+    col.className = 'column' + (queryN && filtered.length === 0 ? ' dim' : '');
     col.innerHTML =
       '<div class="column-head"><span class="column-title">' + escapeHtml(cat.label) + '</span>' +
       '<span class="count-pill">' + filtered.length + '</span></div>' +
@@ -641,7 +686,7 @@ function renderContacts() {
     if (filtered.length === 0) {
       const h = document.createElement('div');
       h.className = 'empty-hint';
-      h.textContent = query ? '—' : 'Keine Kontakte';
+      h.textContent = queryN ? '—' : 'Keine Kontakte';
       list.appendChild(h);
     }
 
@@ -651,11 +696,11 @@ function renderContacts() {
       el.draggable = true;
       el.dataset.id = contact.id;
       el.innerHTML =
-        '<p class="card-org">' + highlight(contact.name || contact.email || 'Unbekannt') + '</p>' +
-        (contact.unternehmen ? '<p class="card-pos">' + highlight(contact.unternehmen) + '</p>' : '') +
+        '<p class="card-org">' + highlight(contact.name || contact.email || 'Unbekannt', queryN) + '</p>' +
+        (contact.unternehmen ? '<p class="card-pos">' + highlight(contact.unternehmen, queryN) + '</p>' : '') +
         '<div class="card-foot">' +
-        (contact.email ? '<span>' + highlight(contact.email) + '</span>' : '') +
-        (contact.letzter_kontakt ? '<span>' + escapeHtml(contact.letzter_kontakt) + '</span>' : '') +
+        (contact.email ? '<span>' + highlight(contact.email, queryN) + '</span>' : '') +
+        (contact.letzter_kontakt ? '<span>' + escapeHtml(fmtDate(contact.letzter_kontakt)) + '</span>' : '') +
         '</div>';
       el.addEventListener('click', () => openContactModal(contact.id));
       el.addEventListener('dragstart', () => el.classList.add('dragging'));
@@ -684,24 +729,41 @@ function renderContacts() {
   });
 }
 
-/* Suche */
-const searchInput = document.getElementById('searchInput');
-const searchClear = document.getElementById('searchClear');
-searchInput.addEventListener('input', () => {
-  query = searchInput.value.trim();
-  searchClear.classList.toggle('show', query.length > 0);
-  renderAll();
+/* Suche - je Tab ein eigenes Feld */
+const searchB = document.getElementById('searchB');
+const clearB = document.getElementById('clearB');
+const searchN = document.getElementById('searchN');
+const clearN = document.getElementById('clearN');
+
+searchB.addEventListener('input', () => {
+  queryB = searchB.value.trim();
+  clearB.classList.toggle('show', queryB.length > 0);
+  renderBoard();
 });
-searchClear.addEventListener('click', () => {
-  searchInput.value = '';
-  query = '';
-  searchClear.classList.remove('show');
-  renderAll();
-  searchInput.focus();
+clearB.addEventListener('click', () => {
+  searchB.value = ''; queryB = '';
+  clearB.classList.remove('show');
+  renderBoard(); searchB.focus();
 });
+searchN.addEventListener('input', () => {
+  queryN = searchN.value.trim();
+  clearN.classList.toggle('show', queryN.length > 0);
+  renderContacts();
+});
+clearN.addEventListener('click', () => {
+  searchN.value = ''; queryN = '';
+  clearN.classList.remove('show');
+  renderContacts(); searchN.focus();
+});
+function activeSearch() {
+  return document.getElementById('view-netzwerk').classList.contains('active') ? searchN : searchB;
+}
 document.addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); searchInput.select(); }
-  if (e.key === 'Escape' && document.activeElement === searchInput) { searchClear.click(); searchInput.blur(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); const s = activeSearch(); s.focus(); s.select(); }
+  if (e.key === 'Escape') {
+    if (document.activeElement === searchB) { clearB.click(); searchB.blur(); }
+    if (document.activeElement === searchN) { clearN.click(); searchN.blur(); }
+  }
 });
 
 /* Tabs */
@@ -722,13 +784,13 @@ function openCardModal(id) {
   document.getElementById('modalTitle').textContent = card ? 'Bewerbung bearbeiten' : 'Neue Bewerbung';
   document.getElementById('f-org').value = card ? (card.org || '') : '';
   document.getElementById('f-subtitle').value = card ? cardSubtitle(card) : '';
-  document.getElementById('f-bereich').value = card ? cardCategory(card) : 'Journalismus';
+  document.getElementById('f-bereich').value = card ? cardCategory(card) : 'Sonstiges';
   document.getElementById('f-datum').value = card ? (card.datum || '') : '';
   document.getElementById('f-person').value = card ? (card.person || '') : '';
   document.getElementById('f-mail').value = card ? (card.mail || '') : '';
   document.getElementById('f-link').value = card ? (card.link || '') : '';
   document.getElementById('f-notes').value = card ? (card.notes || '') : '';
-  currentStatus = card ? cardStatus(card) : 'yellow';
+  currentStatus = card ? cardStatus(card) : 'offen';
   currentMailverlauf = card && Array.isArray(card.mailverlauf) ? [...card.mailverlauf] : [];
   updateStatusRow();
   renderMailverlauf();
@@ -759,8 +821,8 @@ function renderMailverlauf() {
     const row = document.createElement('div');
     row.className = 'mailverlauf-entry';
     row.innerHTML =
-      '<span>' + escapeHtml(entry.betreff || entry.zusammenfassung || '') + '</span>' +
-      '<span class="mailverlauf-date">' + escapeHtml(entry.datum || '') + '</span>';
+      '<span>' + (entry.richtung === 'eingehend' ? '&#8592; ' : entry.richtung === 'ausgehend' ? '&#8594; ' : '') + escapeHtml(entry.betreff || entry.zusammenfassung || '') + '</span>' +
+      '<span class="mailverlauf-date">' + escapeHtml(fmtDate(entry.datum)) + '</span>';
     list.appendChild(row);
   });
 }
