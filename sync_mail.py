@@ -77,6 +77,104 @@ POSITION_PATTERNS = [
 ]
 
 
+# Muster, um den Namen der Gegenseite aus zitierten Antwort-Teilen zu lesen.
+# In gesendeten Mails steht die eigene Signatur oben - der Name des Gegenuebers
+# taucht im zitierten Abschnitt auf (Antwort-Header oder dessen Signatur).
+REPLY_HEADER_PATTERNS = [
+    r"(?:^|\n)\s*>?\s*Von:\s*([^<\n\r]+?)\s*(?:<|\n|\r|$)",
+    r"(?:^|\n)\s*>?\s*From:\s*([^<\n\r]+?)\s*(?:<|\n|\r|$)",
+    r"Am\s+.{5,40}\s+schrieb\s+([^<\n\r:]+?)\s*(?:<|:|\n|$)",
+]
+
+# Grussformeln, nach denen in einer Signatur der Name folgt.
+GREETING_PATTERNS = [
+    r"(?:Viele|Beste|Herzliche|Freundliche|Liebe)\s+Gr(?:ü|ue)(?:ß|ss)e[,!]?",
+    r"Mit\s+freundlichen\s+Gr(?:ü|ue)(?:ß|ss)en[,!]?",
+    r"(?:Best|Kind|Warm)\s+regards[,!]?",
+    r"(?:Cheers|Thanks|Danke|LG|VG|BG)[,!]",
+]
+
+# Zeilen, die nie ein Personenname sind (Signatur-Rauschen).
+# Generische Postfaecher, aus denen kein Personenname abgeleitet werden darf.
+GENERIC_MAILBOXES = {
+    "jobs", "job", "info", "kontakt", "contact", "praktikum", "praktika",
+    "bewerbung", "bewerbungen", "career", "careers", "hr", "office", "mail",
+    "team", "noreply", "no-reply", "hallo", "hello", "service", "support",
+    "presse", "press", "redaktion", "post", "buero", "admin", "recruiting",
+}
+
+NAME_STOPWORDS = [
+    "gmbh", "ag", "e.v.", "team", "redaktion", "www.", "http", "@", "tel",
+    "mobil", "fon", "fax", "str.", "strasse", "straße", "gesendet", "sent",
+]
+
+
+def looks_like_name(line):
+    """Grobe Pruefung, ob eine Zeile ein Personenname sein koennte."""
+    s = line.strip(" >-*\t")
+    if not (2 <= len(s) <= 40):
+        return False
+    low = s.lower()
+    if any(w in low for w in NAME_STOPWORDS):
+        return False
+    words = s.split()
+    if not (1 <= len(words) <= 4):
+        return False
+    # mindestens ein Wort muss mit Grossbuchstaben beginnen
+    return any(w[:1].isupper() for w in words if w)
+
+
+def extract_person(body, to_display_name, recipient):
+    """Ermittelt den Namen der Ansprechperson.
+
+    Reihenfolge: Anzeigename im An-Feld -> Antwort-Header im zitierten Text
+    -> Signatur (Name nach einer Grussformel) im zitierten Text
+    -> Ableitung aus der Mailadresse.
+    """
+    if to_display_name and looks_like_name(to_display_name):
+        return to_display_name.strip()
+
+    for pattern in REPLY_HEADER_PATTERNS:
+        m = re.search(pattern, body, re.IGNORECASE)
+        if m:
+            cand = m.group(1).strip().strip('"')
+            if looks_like_name(cand):
+                return cand
+
+    # "... Amy Fischer <amy@x.de> wrote:" / "... schrieb Max Mustermann <m@x.de>:"
+    m = re.search(r"([^<\n\r,]{2,60}?)\s*<[^>]+>\s*(?:wrote|schrieb)\s*:", body, re.IGNORECASE)
+    if m:
+        tail = m.group(1).strip().strip('">')
+        words = [w for w in tail.split() if w[:1].isupper()]
+        cand = " ".join(words[-3:]) if words else ""
+        if looks_like_name(cand):
+            return cand
+
+    # Signatur im zitierten Abschnitt: Name direkt nach einer Grussformel
+    lines = body.splitlines()
+    for i, line in enumerate(lines):
+        for gp in GREETING_PATTERNS:
+            if re.search(r"^\s*>+\s*" + gp + r"\s*$", line, re.IGNORECASE):
+                for nxt in lines[i + 1:i + 4]:
+                    if looks_like_name(nxt):
+                        return nxt.strip(" >-*\t")
+                break
+
+    # Fallback: aus der Mailadresse ableiten (vorname.nachname@...)
+    local = recipient.split("@")[0] if "@" in recipient else ""
+    if local.lower() in GENERIC_MAILBOXES:
+        return ""
+    if local and not local.isdigit():
+        parts = re.split(r"[._-]+", local)
+        parts = [p for p in parts if p.isalpha() and len(p) > 1]
+        if 1 <= len(parts) <= 3:
+            cand = " ".join(p.capitalize() for p in parts)
+            if looks_like_name(cand):
+                return cand
+
+    return ""
+
+
 def decode_str(raw):
     if raw is None:
         return ""
@@ -282,7 +380,7 @@ def main():
             subtitle = guess_subtitle(combined_text)
             bereich = guess_category(combined_lower, domain)
             org = guess_org_from_domain(domain)
-            person = display_name or ""
+            person = extract_person(body, display_name, recipient)
 
             card_id = "org-" + hashlib.sha1(domain.encode("utf-8")).hexdigest()[:16]
             existing = fetch_existing(supabase_url, supabase_key, "bewerbungen", card_id)
@@ -328,20 +426,23 @@ def main():
             # Netzwerk-Kontakt pflegen
             contact_id = "contact-" + hashlib.sha1(recipient.encode("utf-8")).hexdigest()[:16]
             existing_contact = fetch_existing(supabase_url, supabase_key, "kontakte", contact_id)
+            # Der Bereich des Kontakts folgt immer dem der Bewerbung derselben Firma
+            final_bereich = new_data["bereich"]
+
             if existing_contact:
                 contact_data = dict(existing_contact)
                 contact_data["letzter_kontakt"] = iso_date
                 if person:
                     contact_data["name"] = person
+                contact_data["bereich"] = final_bereich
                 contact_data.setdefault("unternehmen", org)
-                contact_data.setdefault("bereich", bereich)
                 contact_data.setdefault("notizen", "")
             else:
                 contact_data = {
                     "name": person or (recipient.split("@")[0] if "@" in recipient else recipient),
                     "email": recipient,
                     "unternehmen": org,
-                    "bereich": bereich,
+                    "bereich": final_bereich,
                     "erster_kontakt": iso_date,
                     "letzter_kontakt": iso_date,
                     "notizen": "",
